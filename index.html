@@ -57,10 +57,18 @@
       <input type="text" id="tools" placeholder="VS Code, Chrome, Git">
     </div>
 
-    <label for="images">Upload Images:</label>
-    <input type="file" id="images" multiple accept="image/*">
-    <div id="imagePreview" style="display:flex; flex-wrap: wrap; gap:5px; margin-top:5px;"></div>
-
+    <div class="step">
+      <label for="images">Upload Images</label>
+      <input type="file" id="images" multiple accept="image/*">
+    
+      <div id="imagePreview"
+           style="
+            display:flex;
+            flex-wrap:wrap;
+            gap:6px;
+            margin-top:8px;">
+      </div>
+    </div>
 
     <button onclick="submitDTR()">Save Day</button>
     <button class="danger" onclick="deleteLastRecord()">Delete Last Entry</button>
