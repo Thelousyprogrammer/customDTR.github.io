@@ -9,6 +9,7 @@ const COLORS = {
   good: "#00FF00",      // green – good performance
   excellent: "#FF00FF"  // magenta – exceeded target / best
 };
+let dailyRecords = []; // Loaded from localStorage
 
 // === DAILY RECORD MODEL ===
 class DailyRecord {
@@ -25,8 +26,6 @@ class DailyRecord {
 
 // === STORAGE AND EDIT INDEX===
 let editingIndex = null;
-let dailyRecords = JSON.parse(localStorage.getItem("dtr")) || [];
-
 
 // === HELPER FUNCTIONS ===
 function getWeekNumber(date, reference = OJT_START) {
@@ -68,16 +67,6 @@ function setTheme(name) {
   localStorage.setItem("theme", name);
 }
 setTheme(localStorage.getItem("theme") || "f1");
-
-// === SAVE DAILY RECORD ===
-function saveDailyRecord(record) {
-  dailyRecords.push(record);
-  localStorage.setItem("dtr", JSON.stringify(dailyRecords));
-
-  loadReflectionViewer();
-  showSummary(record);
-  updateWeeklyCounter(record.date);
-}
 
 // === DELETE LAST RECORD ===
 function deleteLastRecord() {
@@ -152,62 +141,6 @@ function submitDTR() {
   }
 }
 
-// === CHECK DATE INTEGRITY ===
-function checkDateIntegrity(record) {
-  const existingRecords = dailyRecords.filter(r => r.date === record.date);
-
-  if (existingRecords.length === 0) {
-    // No conflict, safe to save
-    saveDailyRecord(record);
-    showSummary(record);
-    alert("Daily DTR saved!");
-    return;
-  }
-
-  if (existingRecords.length === 1) {
-    const choice = confirm(
-      `There is already a DTR entry for ${record.date}.\n` +
-      `Press OK to replace the original entry, or Cancel to keep it.`
-    );
-
-    if (choice) {
-      // Replace original
-      const index = dailyRecords.findIndex(r => r.date === record.date);
-      dailyRecords[index] = record;
-      localStorage.setItem("dtr", JSON.stringify(dailyRecords));
-      loadReflectionViewer();
-      showSummary(record);
-      alert("Original DTR replaced with new entry.");
-    } else {
-      // Keep original
-      alert("Original DTR kept. No changes made.");
-    }
-    return;
-  }
-
-  if (existingRecords.length > 1) {
-    let keepIndex = prompt(
-      `Multiple DTR entries found for ${record.date}.\n` +
-      `Enter the number (1-${existingRecords.length}) of the entry you want to keep:`
-    );
-
-    keepIndex = parseInt(keepIndex) - 1;
-    if (keepIndex >= 0 && keepIndex < existingRecords.length) {
-      // Remove others, keep selected
-      dailyRecords = dailyRecords.filter(r => !(r.date === record.date));
-      dailyRecords.push(existingRecords[keepIndex]); // keep selected
-      dailyRecords.push(record); // add new
-      dailyRecords.sort((a, b) => new Date(a.date) - new Date(b.date)); // keep order
-      localStorage.setItem("dtr", JSON.stringify(dailyRecords));
-      loadReflectionViewer();
-      showSummary(record);
-      alert("Duplicate entries resolved and new DTR saved.");
-    } else {
-      alert("Invalid selection. No changes made.");
-    }
-  }
-}
-
 // Separate function to save
 function saveRecord(date, hours, reflection, accomplishments, tools, images) {
   const record = new DailyRecord(date, hours, reflection, accomplishments, tools, images);
@@ -263,11 +196,11 @@ function updateWeeklyCounter(dateInput) {
     .reduce((sum, r) => sum + r.hours, 0);
 
   const maxWeeklyHours = DAILY_TARGET_HOURS * 7;
-  let color = "#FFFFFF"; // default
+  let color = COLORS.neutral; // default
 
-  if (weekHours < maxWeeklyHours * 0.5) color = "#FFF000";
-  else if (weekHours < maxWeeklyHours) color = "#00FF00";
-  else color = "#FF00FF";
+  if (weekHours < maxWeeklyHours * 0.5) color = COLORS.warning;
+  else if (weekHours < maxWeeklyHours) color = COLORS.good;
+  else color = COLORS.warning;
 
   const counterEl = document.getElementById("weeklyCounter");
   if (counterEl) {
@@ -280,6 +213,9 @@ function showSummary(record) {
   const s = document.getElementById("summary");
   s.style.display = "block";
 
+  // Images display in summary
+  let imagesHTML = "";
+
   if (!record || !record.date) {
     s.innerHTML = `<h2>Session Delta Summary</h2><p>No record selected.</p>`;
     return;
@@ -290,20 +226,17 @@ function showSummary(record) {
     : 0;
 
   // Delta color
-  let deltaColor = "#FFFFFF"; // normal
-  if (record.delta <= 0) deltaColor = "#FFF000"; // lowest
-  else if (record.delta > GREAT_DELTA_THRESHOLD) deltaColor = "#00FF00"; // personal highest
+  let deltaColor = COLORS.neutral; // normal
+  if (record.delta <= 0) deltaColor = COLORS.warning; // lowest
+  else if (record.delta > GREAT_DELTA_THRESHOLD) deltaColor = COLORS.good; // personal highest
 
   // Delta trend
-  let trendLabel = "No previous record", trendColor = "#FFFFFF";
+  let trendLabel = "No previous record", trendColor = COLORS.neutral;
   if (dailyRecords.length > 1) {
-    if (record.delta > previousDelta) { trendLabel = "Improved"; trendColor = "#00FF00"; }
-    else if (record.delta < previousDelta) { trendLabel = "Declined"; trendColor = "#FFF000"; }
-    else { trendLabel = "Same as before"; trendColor = "#FFFFFF"; }
-
-    // Images display in summary
-let imagesHTML = "";
-
+    if (record.delta > previousDelta) { trendLabel = "Improved"; trendColor = COLORS.good; }
+    else if (record.delta < previousDelta) { trendLabel = "Declined"; trendColor = COLORS.warning; }
+    else { trendLabel = "Same as before"; trendColor = COLORS.neutral; }
+  }
 if (record.images && record.images.length) {
   imagesHTML = `
     <p><strong>Images:</strong></p>
@@ -315,24 +248,23 @@ if (record.images && record.images.length) {
     </div>
   `;
 }
-}
 
   // Overall progress
   const totalHours = getTotalHours();
   let overallStatus = totalHours > MASTER_TARGET_HOURS
     ? "OVER 500 HOURS LIMIT!" 
     : `${totalHours} / ${MASTER_TARGET_HOURS} hours completed`;
-  let overallColor = (totalHours >= MASTER_TARGET_HOURS) ? "#FF00FF" : "#00FF00"; // highest vs personal
+  let overallColor = (totalHours >= MASTER_TARGET_HOURS) ? COLORS.warning : COLORS.good; // highest vs personal
 
   // Weekly hours
   const weekNum = record.date ? getWeekNumber(new Date(record.date)) : null;
   const weekHours = weekNum ? getWeekHours(weekNum) : 0;
   const maxWeeklyHours = DAILY_TARGET_HOURS * 7;
 
-  let weekColor = "#FFFFFF"; // normal
-  if (weekHours < maxWeeklyHours * 0.5) weekColor = "#FFF000"; // lowest
-  else if (weekHours < maxWeeklyHours) weekColor = "#00FF00"; // personal highest
-  else weekColor = "#FF00FF"; // highest overall
+  let weekColor = COLORS.neutral; // normal
+  if (weekHours < maxWeeklyHours * 0.5) weekColor = COLORS.warning; // lowest
+  else if (weekHours < maxWeeklyHours) weekColor = COLORS.good; // personal highest
+  else weekColor = COLORS.warning; // highest overall
 
   s.innerHTML = `
     <h2>Session Delta Summary</h2>
@@ -389,10 +321,10 @@ function loadReflectionViewer() {
     .filter(r => getWeekNumber(new Date(r.date)) === currentWeek)
     .reduce((sum, r) => sum + r.hours, 0);
 
-  let weekColor = "#FFFFFF";
-  if (currentWeekHours < maxWeeklyHours * 0.5) weekColor = "#FFF000";
-  else if (currentWeekHours < maxWeeklyHours) weekColor = "#00FF00";
-  else weekColor = "#FF00FF";
+  let weekColor = COLORS.neutral;
+  if (currentWeekHours < maxWeeklyHours * 0.5) weekColor = COLORS.warning;
+  else if (currentWeekHours < maxWeeklyHours) weekColor = COLORS.good;
+  else weekColor = COLORS.warning;
 
   const counterDiv = document.createElement("div");
   counterDiv.id = "weeklyCounterViewer";
@@ -410,25 +342,25 @@ dailyRecords.forEach((r, i) => {
   const weekNum = getWeekNumber(new Date(r.date)); // relative to OJT_START
   const weekHours = getWeekHours(weekNum);        // use updated week logic
 
-  let deltaColor = "#FFFFFF";
-  if (r.delta <= 0) deltaColor = "#FFF000";
-  else if (r.delta > GREAT_DELTA_THRESHOLD) deltaColor = "#00FF00";
+  let deltaColor = COLORS.neutral;
+  if (r.delta <= 0) deltaColor = COLORS.warning;
+  else if (r.delta > GREAT_DELTA_THRESHOLD) deltaColor = COLORS.good;
 
   let trendLabel = "No previous record";
-  let trendColor = "#FFFFFF";
+  let trendColor = COLORS.neutral;
   if (i > 0) {
     const prevDelta = dailyRecords[i - 1].delta;
   if (r.delta > prevDelta) { 
     trendLabel = "Improved"; 
-    trendColor = "#00FF00"; 
+    trendColor = COLORS.good; 
   }
   else if (r.delta < prevDelta) { 
     trendLabel = "Declined"; 
-    trendColor = "#FFF000"; 
+    trendColor = COLORS.warning; 
   }
   else { 
     trendLabel = "Same as before"; 
-    trendColor = "#FFFFFF"; 
+    trendColor = COLORS.neutral; 
   }
 } 
 
@@ -504,9 +436,9 @@ function renderDailyVisualizer() {
     square.style.border = "1px solid #ccc";
 
     // Daily color based on delta
-    if (r.delta > GREAT_DELTA_THRESHOLD) square.style.background = "#00FF00"; // green
-    else if (r.delta > 0) square.style.background = "#FFFFFF"; // white
-    else square.style.background = "#FFF000"; // yellow
+    if (r.delta > GREAT_DELTA_THRESHOLD) square.style.background = COLORS.good; // green
+    else if (r.delta > 0) square.style.background = COLORS.neutral; // white
+    else square.style.background = COLORS.warning; // yellow
 
     square.title = `${r.date} — Δ ${r.delta.toFixed(2)} hrs`;
     dailyVisualizer.appendChild(square);
@@ -532,7 +464,7 @@ dailyRecords.forEach(r => {
 });
 
 // Get maximum week hours for color scaling
-const maxWeeklyHours = Math.max(...Object.values(weeklyTotals));
+const maxWeeklyHours = Math.max(1, ...Object.values(weeklyTotals));
 
   Object.entries(weeklyTotals).forEach(([weekKey, totalHours]) => {
     const square = document.createElement("div");
@@ -544,10 +476,10 @@ const maxWeeklyHours = Math.max(...Object.values(weeklyTotals));
 
     // Color coding per week performance
     const ratio = totalHours / maxWeeklyHours;
-    if (ratio >= 0.9) square.style.backgroundColor = "#FF00FF"; // top week
-    else if (ratio >= 0.6) square.style.backgroundColor = "#00FF00"; // strong week
-    else if (ratio >= 0.3) square.style.backgroundColor = "#FFFFFF"; // medium week
-    else square.style.backgroundColor = "#FFF000"; // low week
+    if (ratio >= 0.9) square.style.backgroundColor = COLORS.warning; // top week
+    else if (ratio >= 0.6) square.style.backgroundColor = COLORS.good; // strong week
+    else if (ratio >= 0.3) square.style.backgroundColor = COLORS.neutral; // medium week
+    else square.style.backgroundColor = COLORS.warning; // low week
 
     square.title = `Week ${weekKey} — Total Hours: ${totalHours}`;
     weeklyVisualizer.appendChild(square);
