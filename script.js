@@ -321,6 +321,7 @@ function loadReflectionViewer() {
     .filter(r => getWeekNumber(new Date(r.date)) === currentWeek)
     .reduce((sum, r) => sum + r.hours, 0);
 
+  // Weekly hours color
   let weekColor = COLORS.neutral;
   if (currentWeekHours < maxWeeklyHours * 0.5) weekColor = COLORS.warning;
   else if (currentWeekHours < maxWeeklyHours) weekColor = COLORS.good;
@@ -342,10 +343,12 @@ dailyRecords.forEach((r, i) => {
   const weekNum = getWeekNumber(new Date(r.date)); // relative to OJT_START
   const weekHours = getWeekHours(weekNum);        // use updated week logic
 
+  // Week hours color
   let deltaColor = COLORS.neutral;
   if (r.delta <= 0) deltaColor = COLORS.warning;
   else if (r.delta > GREAT_DELTA_THRESHOLD) deltaColor = COLORS.good;
 
+  // Delta trend
   let trendLabel = "No previous record";
   let trendColor = COLORS.neutral;
   if (i > 0) {
