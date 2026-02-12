@@ -246,9 +246,44 @@ button:hover {
   opacity: 0.6;
 }
 
-.danger {
-  background: #ff1e00;
-  color: white;
+.telemetry-btn {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  padding: 4px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: 0.3s;
+  font-family: var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.telemetry-btn:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+@media (max-width: 768px) {
+  .telemetry-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chart-container {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  height: 350px;
 }
 
 /* ===== GITHUB STYLE CONTRIBUTION GRAPH ===== */

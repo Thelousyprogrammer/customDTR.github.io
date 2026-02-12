@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>DTR Telemetry – Performance Analytics</title>
+  <link rel="stylesheet" href="style.css?v=2.2">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // Immediate theme sync
+    document.documentElement.setAttribute("data-theme", localStorage.getItem("theme") || "f1");
+  </script>
+</head>
+<body>
+
+<div class="container">
+  <div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+      <div>
+        <h1>Productivity Telemetry</h1>
+        <p class="subtitle">Advanced Session Analysis & Performance Metrics</p>
+      </div>
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <label for="weekSelect" style="font-weight: bold; color: var(--accent);">View Window:</label>
+        <select id="weekSelect" class="telemetry-btn" style="background: var(--panel); text-transform: none; text-align: left;" onchange="updateView()">
+          <option value="all">Full OJT Span</option>
+        </select>
+        <button class="telemetry-btn" onclick="window.location.href='index.html'">Back to DTR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Telemetry Overview Stats -->
+  <div class="telemetry-grid">
+    <div class="card" id="avgHoursCard">
+      <h3>Average Pace</h3>
+      <div style="display: flex; align-items: baseline; gap: 10px;">
+        <p id="avgHoursText" style="font-size: 32px; font-weight: bold; color: var(--color-good); margin: 5px 0;">0.0 hrs</p>
+        <span id="avgCompare" style="font-size: 14px; font-weight: bold;"></span>
+      </div>
+      <small>per valid session</small>
+    </div>
+    <div class="card" id="completionCard">
+      <h3>OJT Completion</h3>
+      <div style="display: flex; align-items: baseline; gap: 10px;">
+        <p id="completionPercText" style="font-size: 32px; font-weight: bold; color: var(--color-excellent); margin: 5px 0;">0%</p>
+        <span id="completionCompare" style="font-size: 14px; font-weight: bold;"></span>
+      </div>
+      <small id="completionTargetText">0 / 500 hrs</small>
+    </div>
+  </div>
+
+  <!-- Telemetry Charts -->
+  <div class="telemetry-grid">
+    <div class="chart-container">
+      <h3>Session Delta History</h3>
+      <canvas id="deltaChart"></canvas>
+    </div>
+    <div class="chart-container">
+      <h3>Daily Hour Distribution</h3>
+      <canvas id="hourDistChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top: 20px;">
+    <h3>Weekly Velocity Trend</h3>
+    <div style="height: 300px;">
+      <canvas id="weeklyTrendChart"></canvas>
+    </div>
+  </div>
+
+  <div id="loadingOverlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; color: var(--accent); flex-direction: column;">
+    <div style="width: 50px; height: 50px; border: 5px solid var(--panel); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+    <p style="margin-top: 15px; font-family: var(--font-heading); letter-spacing: 2px;">SYNCING TELEMETRY DATA...</p>
+  </div>
+</div>
+
+<style>
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+canvas {
+  width: 100% !important;
+  height: 90% !important;
+}
+</style>
+
+<script src="telemetry.js"></script>
+</body>
+</html>
