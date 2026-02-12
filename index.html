@@ -87,20 +87,36 @@
   <div class="card">
     <h2>Reflection Viewer</h2>
     <p class="subtitle">All saved reflections for quick review & export</p>
+    
+    <div class="sort-controls">
+      <label for="sortSelect">Sort by:</label>
+      <select id="sortSelect" onchange="changeSortMode(this.value)">
+        <option value="date-asc">Date (Oldest First)</option>
+        <option value="date-desc">Date (Newest First)</option>
+        <option value="delta-desc">Performance (Best Delta)</option>
+        <option value="delta-asc">Performance (Worst Delta)</option>
+      </select>
+    </div>
 
     <div id="reflectionViewer" class="viewer-box">
       <p class="empty">No reflections saved yet.</p>
     </div>
 
   <div class="card">
-    <h2>Daily Performance View</h2>
-    <div id="dailyVisualizer" class="visualizer"></div>
+    <h2>Daily Performance Graph</h2>
+    <div id="githubGraph" class="contribution-graph"></div>
+    <div style="font-size: 11px; margin-top: 5px; color: #888;">
+      Less <span style="display:inline-block; width:10px; height:10px; background:var(--level-0)"></span>
+      <span style="display:inline-block; width:10px; height:10px; background:var(--level-1)"></span>
+      <span style="display:inline-block; width:10px; height:10px; background:var(--level-2)"></span>
+      <span style="display:inline-block; width:10px; height:10px; background:var(--level-3)"></span> More
+    </div>
   </div>
 
   <!-- WEEKLY PERFORMANCE CARD -->
   <div class="card">
-    <h2>Weekly Performance View</h2>
-    <div id="weeklyVisualizer" class="calendar-visualizer"></div>
+    <h2>Weekly Summary Graph</h2>
+    <div id="weeklyGraph" class="contribution-graph" style="grid-template-rows: 1fr; grid-auto-flow: column;"></div>
   </div>
 
     <div class="viewer-actions">

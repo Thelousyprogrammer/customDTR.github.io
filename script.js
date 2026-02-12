@@ -26,6 +26,7 @@ class DailyRecord {
 
 // === STORAGE AND EDIT INDEX===
 let editingIndex = null;
+let currentSortMode = "date-asc";
 
 // === HELPER FUNCTIONS ===
 function getWeekNumber(date, reference = OJT_START) {
@@ -161,8 +162,8 @@ function saveRecord(date, hours, reflection, accomplishments, tools, images) {
   loadReflectionViewer();
   showSummary(record);
   updateWeeklyCounter(record.date);
-  renderDailyVisualizer();
-  renderWeeklyVisualizer();
+  renderDailyGraph();
+  renderWeeklyGraph();
 
   clearDTRForm();
   alert("Daily DTR saved and form cleared!");
@@ -302,6 +303,12 @@ if (record.images && record.images.length) {
   `;
 }
 
+// === CHANGE SORT MODE ===
+function changeSortMode(mode) {
+  currentSortMode = mode;
+  loadReflectionViewer();
+}
+
 // === UPDATE REFLECTION VIEWER WITH WEEKLY HOURS COUNTER ===
 function loadReflectionViewer() {
   const viewer = document.getElementById("reflectionViewer");
@@ -338,155 +345,222 @@ function loadReflectionViewer() {
   `;
   viewer.appendChild(counterDiv);
 
-  // Reflection items
-dailyRecords.forEach((r, i) => {
-  const weekNum = getWeekNumber(new Date(r.date)); // relative to OJT_START
-  const weekHours = getWeekHours(weekNum);        // use updated week logic
+  // Prepare items for display (including trend calculation based on chronological order)
+  let displayItems = dailyRecords.map((r, index) => {
+    let trendLabel = "No previous record";
+    let trendColor = COLORS.neutral;
 
-  // Week hours color
-  let deltaColor = COLORS.neutral;
-  if (r.delta <= 0) deltaColor = COLORS.warning;
-  else if (r.delta > GREAT_DELTA_THRESHOLD) deltaColor = COLORS.good;
+    if (index > 0) {
+      const prevDelta = dailyRecords[index - 1].delta;
+      if (r.delta > prevDelta) {
+        trendLabel = "Improved";
+        trendColor = COLORS.good;
+      } else if (r.delta < prevDelta) {
+        trendLabel = "Declined";
+        trendColor = COLORS.warning;
+      } else {
+        trendLabel = "Same as before";
+        trendColor = COLORS.neutral;
+      }
+    }
 
-  // Delta trend
-  let trendLabel = "No previous record";
-  let trendColor = COLORS.neutral;
-  if (i > 0) {
-    const prevDelta = dailyRecords[i - 1].delta;
-  if (r.delta > prevDelta) { 
-    trendLabel = "Improved"; 
-    trendColor = COLORS.good; 
-  }
-  else if (r.delta < prevDelta) { 
-    trendLabel = "Declined"; 
-    trendColor = COLORS.warning; 
-  }
-  else { 
-    trendLabel = "Same as before"; 
-    trendColor = COLORS.neutral; 
-  }
-} 
+    return {
+      r,
+      originalIndex: index,
+      trendLabel,
+      trendColor
+    };
+  });
 
-  const imagesHTML = r.images && r.images.length
-    ? `<div class="dtr-images" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">
-        ${r.images.map(src => `<img src="${src}" style="width:70px; height:70px; object-fit:cover; border-radius:5px; border:1px solid #555;">`).join("")}
+  // Sort display items
+  if (currentSortMode === "date-desc") {
+    displayItems.sort((a, b) => new Date(b.r.date) - new Date(a.r.date));
+  } else if (currentSortMode === "delta-desc") {
+    displayItems.sort((a, b) => b.r.delta - a.r.delta);
+  } else if (currentSortMode === "delta-asc") {
+    displayItems.sort((a, b) => a.r.delta - b.r.delta);
+  }
+  // Default is "date-asc" which is the original order
+
+  // Render items
+  displayItems.forEach((item) => {
+    const r = item.r;
+    const weekNum = getWeekNumber(new Date(r.date)); // relative to OJT_START
+    const weekHours = getWeekHours(weekNum);        // use updated week logic
+
+    // Week hours color
+    let deltaColor = COLORS.neutral;
+    if (r.delta <= 0) deltaColor = COLORS.warning;
+    else if (r.delta > GREAT_DELTA_THRESHOLD) deltaColor = COLORS.good;
+
+    const accomplishmentsHTML = r.accomplishments && r.accomplishments.length
+    ? `<div style="margin-top:8px;">
+         <strong>Accomplishments:</strong>
+         <ul style="margin:4px 0 8px 18px; padding:0;">
+           ${r.accomplishments.map(a => `<li>${a}</li>`).join("")}
+         </ul>
        </div>`
     : "";
 
-  const toolsHTML = r.tools && r.tools.length
-    ? `<p><strong>Tools Used:</strong> ${r.tools.join(", ")}</p>`
-    : "";
+    const imagesHTML = r.images && r.images.length
+      ? `<div class="dtr-images" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">
+          ${r.images.map(src => `<img src="${src}" style="width:70px; height:70px; object-fit:cover; border-radius:5px; border:1px solid #555;">`).join("")}
+         </div>`
+      : "";
 
-const div = document.createElement("div");
-div.className = "reflection-item";
-div.innerHTML = `
-  <div style="display:flex; justify-content:space-between; align-items:center;">
-    <strong>${i + 1}. ${r.date} (Week ${weekNum})</strong>
+    const toolsHTML = r.tools && r.tools.length
+      ? `<p><strong>Tools Used:</strong> ${r.tools.join(", ")}</p>`
+      : "";
 
-    <button 
-      class="edit-btn" 
-      data-index="${i}"
-      style="
-        background:#1e1e1e;
-        color:#fff;
-        border:1px solid #ff1e00;
-        padding:4px 10px;
-        border-radius:5px;
-        cursor:pointer;
-        font-size:12px;">
-      ✎ Edit
-    </button>
-  </div>
+    const div = document.createElement("div");
+    div.className = "reflection-item";
+    div.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <strong>${item.originalIndex + 1}. ${r.date} (Week ${weekNum})</strong>
 
-  <p>${r.reflection}</p>
+        <button 
+          class="edit-btn" 
+          data-index="${item.originalIndex}"
+          style="
+            background:#1e1e1e;
+            color:#fff;
+            border:1px solid #ff1e00;
+            padding:4px 10px;
+            border-radius:5px;
+            cursor:pointer;
+            font-size:12px;">
+          ✎ Edit
+        </button>
+      </div>
 
-  <small>
-    Hours:
-    <span style="color:${weekColor}; font-weight:bold;">${r.hours}</span> |
-    Delta:
-    <span style="color:${deltaColor}; font-weight:bold;">${r.delta.toFixed(2)}</span> |
-    Trend:
-    <span style="color:${trendColor}; font-weight:bold;">${trendLabel}</span> |
-    Week Total:
-    <span style="color:${weekColor}; font-weight:bold;">${weekHours} hrs</span>
-  </small>
+      <p>${r.reflection}</p>
 
-  ${toolsHTML}
-  ${imagesHTML}
-  <hr>
-`;
-viewer.appendChild(div);
-});
+      ${accomplishmentsHTML}
+
+      <small>
+        Hours:
+        <span style="color:${weekColor}; font-weight:bold;">${r.hours}</span> |
+        Delta:
+        <span style="color:${deltaColor}; font-weight:bold;">${r.delta.toFixed(2)}</span> |
+        Trend:
+        <span style="color:${item.trendColor}; font-weight:bold;">${item.trendLabel}</span> |
+        Week Total:
+        <span style="color:${weekColor}; font-weight:bold;">${weekHours} hrs</span>
+      </small>
+
+      ${toolsHTML}
+      ${imagesHTML}
+      <hr>
+    `;
+    viewer.appendChild(div);
+  });
 }
 
-// === Daily Performance View ===
-function renderDailyVisualizer() {
-  const dailyVisualizer = document.getElementById("dailyVisualizer");
-  if (!dailyVisualizer) return;
-  dailyVisualizer.innerHTML = ""; // clear old content
+// === GITHUB CONTRIBUTION GRAPH (Daily) ===
+function renderDailyGraph() {
+  const container = document.getElementById("githubGraph");
+  if (!container) return;
+  container.innerHTML = "";
 
-  if (!dailyRecords.length) {
-    dailyVisualizer.innerHTML = "<p class='empty'>No daily records yet.</p>";
-    return;
-  }
+  // 1. Generate date range (from OJT_START to Today/Future)
+  //    GitHub usually shows the last 365 days, but we'll show from OJT_START to now+buffer
+  const today = new Date();
+  const startDate = new Date(OJT_START);
+  
+  // Align start date to the previous Sunday so the graph starts cleanly
+  // Day: 0 (Sun) to 6 (Sat)
+  const dayOfWeek = startDate.getDay(); 
+  startDate.setDate(startDate.getDate() - dayOfWeek);
 
+  const totalDays = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24)) + 7; // +1 week buf
+
+  // 2. Map existing records for quick lookup
+  const recordMap = {};
   dailyRecords.forEach(r => {
-    const square = document.createElement("div");
-    square.style.width = "14px";
-    square.style.height = "14px";
-    square.style.margin = "2px";
-    square.style.borderRadius = "3px";
-    square.style.border = "1px solid #ccc";
-
-    // Daily color based on delta
-    if (r.delta > GREAT_DELTA_THRESHOLD) square.style.background = COLORS.excellent; // violet
-    else if (r.delta > 0) square.style.background = COLORS.good; // green
-    else square.style.background = COLORS.warning; // yellow
-
-    square.title = `${r.date} — Δ ${r.delta.toFixed(2)} hrs`;
-    dailyVisualizer.appendChild(square);
+    recordMap[r.date] = r;
   });
+
+  // 3. Build the cells
+  for (let i = 0; i < totalDays; i++) {
+    const curDate = new Date(startDate);
+    curDate.setDate(startDate.getDate() + i);
+
+    const year = curDate.getFullYear();
+    const month = String(curDate.getMonth() + 1).padStart(2, "0");
+    const day = String(curDate.getDate()).padStart(2, "0");
+    const dateStr = `${year}-${month}-${day}`;
+
+    const record = recordMap[dateStr];
+    let level = 0;
+    
+    // Determine level (F1 Theme: Yellow, Green, Magenta)
+    // Level 0: 0 hours
+    // Level 1: >= 4 hours (Warning/Base)
+    // Level 2: >= 6 hours (Good)
+    // Level 3: >= 9 hours (Excellent)
+    if (record) {
+      if (record.hours >= 9) level = 3;
+      else if (record.hours >= 6) level = 2;
+      else if (record.hours > 0) level = 1; // Any work > 0 gets at least level 1
+    }
+
+    const cell = document.createElement("div");
+    cell.className = "day-cell";
+    cell.style.backgroundColor = `var(--level-${level})`;
+    cell.title = `${dateStr}: ${record ? record.hours : 0} hours`;
+    
+    // Optional: add click event to scroll to that record
+    if (record) {
+      cell.onclick = () => {
+         // Find logical index in displayed list if needed, or just alert detail
+         alert(`Date: ${dateStr}\nHours: ${record.hours}\nReflection: ${record.reflection}`);
+      };
+    }
+
+    container.appendChild(cell);
+  }
 }
 
-// === Weekly Productivity Calendar ===
-function renderWeeklyVisualizer() {
-  const weeklyVisualizer = document.getElementById("weeklyVisualizer");
-  if (!weeklyVisualizer) return;
-  weeklyVisualizer.innerHTML = "";
+// === WEEKLY SUMMARY GRAPH (One block per week) ===
+function renderWeeklyGraph() {
+  const container = document.getElementById("weeklyGraph");
+  if (!container) return;
+  container.innerHTML = "";
 
-  if (!dailyRecords.length) {
-    weeklyVisualizer.innerHTML = "<p class='empty'>No weekly records yet.</p>";
-    return;
-  }
+  // Simply map weeks 1 to current
+  const latestDate = dailyRecords.length ? new Date(dailyRecords[dailyRecords.length - 1].date) : new Date();
+  const maxWeek = getWeekNumber(latestDate);
 
-// Build weekly totals once
-const weeklyTotals = {};
-dailyRecords.forEach(r => {
-  const w = getWeekNumber(new Date(r.date));
-  weeklyTotals[w] = (weeklyTotals[w] || 0) + r.hours;
-});
-
-// Get maximum week hours for color scaling
-const maxWeeklyHours = Math.max(1, ...Object.values(weeklyTotals));
-
-  Object.entries(weeklyTotals).forEach(([weekKey, totalHours]) => {
-    const square = document.createElement("div");
-    square.style.width = "20px";
-    square.style.height = "20px";
-    square.style.margin = "2px";
-    square.style.borderRadius = "3px";
-    square.style.border = "1px solid #ccc";
-
-    // Color coding per week performance
-    const ratio = totalHours / maxWeeklyHours;
-    if (ratio >= 0.9) square.style.backgroundColor = COLORS.excellent; // top week
-    else if (ratio >= 0.6) square.style.backgroundColor = COLORS.good; // strong week
-    else if (ratio >= 0.3) square.style.backgroundColor = COLORS.neutral; // medium week
-    else square.style.backgroundColor = COLORS.warning; // low week
-
-    square.title = `Week ${weekKey} — Total Hours: ${totalHours}`;
-    weeklyVisualizer.appendChild(square);
+  // Group data
+  const weeklyData = {};
+  dailyRecords.forEach(r => {
+    const w = getWeekNumber(new Date(r.date));
+    if (!weeklyData[w]) weeklyData[w] = 0;
+    weeklyData[w] += r.hours;
   });
+
+  for (let w = 1; w <= maxWeek; w++) {
+    const hours = weeklyData[w] || 0;
+    const target = DAILY_TARGET_HOURS * 5; // e.g. 40 hours
+
+    let level = 0;
+    // Weekly Targets scaled roughly (Assuming 5 days)
+    // Level 3: 9*5 = 45+
+    // Level 2: 6*5 = 30+
+    // Level 1: > 0
+    if (hours >= 45) level = 3;      // Excellent week
+    else if (hours >= 30) level = 2; // Good week
+    else if (hours > 0) level = 1;   // Active week
+
+    const cell = document.createElement("div");
+    cell.className = "day-cell"; // Reuse cell style
+    cell.style.width = "20px";
+    cell.style.height = "20px";
+    cell.style.backgroundColor = `var(--level-${level})`;
+    cell.title = `Week ${w}: ${hours} Total Hours`;
+
+    container.appendChild(cell);
+  }
 }
 
 // === EDIT RECORD MODAL HANDLING ===
@@ -532,8 +606,8 @@ function saveEditModal() {
   closeEditModal();
   loadReflectionViewer();
   showSummary(dailyRecords[editingIndex]);
-  renderDailyVisualizer();
-  renderWeeklyVisualizer();
+  renderDailyGraph();
+  renderWeeklyGraph();
   alert("Reflection updated successfully.");
 }
 
@@ -551,8 +625,8 @@ window.addEventListener("DOMContentLoaded", () => {
   loadReflectionViewer();
 
   // Render performance visualizers
-  renderDailyVisualizer();
-  renderWeeklyVisualizer();
+  renderDailyGraph();
+  renderWeeklyGraph();
 
   if (dailyRecords.length) {
     showSummary(dailyRecords[dailyRecords.length - 1]);
