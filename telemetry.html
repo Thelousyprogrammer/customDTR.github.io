@@ -31,25 +31,117 @@
 
   <!-- Telemetry Overview Stats -->
   <div class="telemetry-grid">
-    <div class="card" id="avgHoursCard">
-      <h3>Average Pace</h3>
-      <div style="display: flex; align-items: baseline; gap: 10px;">
-        <p id="avgHoursText" style="font-size: 32px; font-weight: bold; color: var(--color-good); margin: 5px 0;">0.0 hrs</p>
-        <span id="avgCompare" style="font-size: 14px; font-weight: bold;"></span>
+    <div class="card" id="forecastCard">
+      <h3>OJT Forecast</h3>
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <p id="remainingHoursText" style="font-size: 24px; font-weight: bold; color: var(--accent); margin: 0;">0 hrs remaining</p>
+        <p id="completionDateText" style="font-size: 18px; font-weight: bold; color: var(--color-excellent); margin: 0;">Projected: TBD</p>
+        <small id="avgPaceNote">Based on current pace</small>
       </div>
-      <small>per valid session</small>
     </div>
-    <div class="card" id="completionCard">
-      <h3>OJT Completion</h3>
-      <div style="display: flex; align-items: baseline; gap: 10px;">
-        <p id="completionPercText" style="font-size: 32px; font-weight: bold; color: var(--color-excellent); margin: 5px 0;">0%</p>
-        <span id="completionCompare" style="font-size: 14px; font-weight: bold;"></span>
+    <div class="card" id="paceCalculatorCard">
+      <h3>Required Pace Calculator</h3>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--border); padding-bottom: 5px;">
+           <small>Remaining:</small>
+           <span id="remHoursPace" style="font-weight: bold; color: var(--accent);">0h</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--border); padding-bottom: 5px;">
+           <small>Remaining Days:</small>
+           <span id="remDaysPace" style="font-weight: bold;">0 days</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--border); padding-bottom: 5px;">
+           <small>Required Daily Avg:</small>
+           <span id="reqPaceValue" style="font-weight: bold; color: var(--color-excellent);">0.0h/day</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+           <small>Last 7-Day Avg:</small>
+           <span id="last7DayPace" style="font-weight: bold;">0.0h/day</span>
+        </div>
+        <p id="paceStatusMsg" style="font-size: 14px; font-weight: bold; margin-top: 5px; text-align: center; color: var(--color-good);">"Calculating..."</p>
       </div>
-      <small id="completionTargetText">0 / 500 hrs</small>
+    </div>
+    <div class="card" id="efficiencyCard">
+      <h3>Efficiency Metrics</h3>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; justify-content: space-between;">
+          <small>Time Efficiency (Act/Plan)</small>
+          <span id="timeEffValue" style="font-weight: bold;">0%</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <small>Energy Efficiency (Blocks/Hr)</small>
+          <span id="energyEffValue" style="font-weight: bold;">0%</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="recoveryCard">
+      <h3>Recovery & Fatigue</h3>
+      <div id="fatigueStatus" style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+         <span id="fatigueIndicator" style="font-size: 24px;">🟢</span>
+         <span id="fatigueLabel" style="font-weight: bold; font-size: 18px;">Stable</span>
+      </div>
+      <small id="fatigueNote">Sustainability Check</small>
+    </div>
+    <div class="card" id="momentumCard">
+      <h3>Momentum & Consistency</h3>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <small>Momentum Index</small>
+          <span id="momentumValue" style="font-weight: bold;">0%</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <small>Consistency Streak</small>
+          <span id="streakValue" style="font-weight: bold;">0 Days</span>
+        </div>
+        <p id="momentumStatus" style="font-size: 14px; font-weight: bold; margin-top: 5px; text-align: center;">Stability Mode</p>
+      </div>
+    </div>
+    <div class="card" id="cogLoadCard">
+      <h3>Cognitive Load Meter</h3>
+      <div id="cogStatus" style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+         <span id="cogIndicator" style="font-size: 24px;">🔋</span>
+         <span id="cogLabel" style="font-weight: bold; font-size: 18px;">Normal</span>
+      </div>
+      <small id="cogNote">OJT + Deep Personal Work</small>
     </div>
   </div>
 
   <!-- Telemetry Charts -->
+  <div class="card" style="margin-top: 20px;">
+    <h3>Cumulative Trajectory vs Ideal (8h/day)</h3>
+    <div style="height: 350px;">
+      <canvas id="trajectoryChart"></canvas>
+    </div>
+  </div>
+
+  <div class="telemetry-grid">
+    <div class="card">
+        <h3>L2 Performance Scores</h3>
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
+            <div style="display:flex; justify-content:space-between;">
+                <small>Commute Utilization</small>
+                <span id="commuteEff" style="font-weight:bold;">0%</span>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+                <small>Evening Deep Work Score</small>
+                <span id="deepWorkScore" style="font-weight:bold;">0.0</span>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+                <small>Average Sleep</small>
+                <span id="avgSleep" style="font-weight:bold;">0.0h</span>
+            </div>
+        </div>
+    </div>
+    <div class="chart-container">
+      <h3>Identity Alignment (Weekly)</h3>
+      <canvas id="identityChart"></canvas>
+    </div>
+    <div class="chart-container">
+      <h3>Energy Zone Distribution</h3>
+      <canvas id="energyZoneChart"></canvas>
+    </div>
+  </div>
+
   <div class="telemetry-grid">
     <div class="chart-container">
       <h3>Session Delta History</h3>

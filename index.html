@@ -58,6 +58,48 @@
       <input type="text" id="tools" placeholder="VS Code, Chrome, Git">
     </div>
 
+    <!-- LEVEL 2 TELEMETRY FIELDS -->
+    <div style="margin-top:20px; padding-top:15px; border-top: 1px solid var(--border);">
+      <h3 style="color:var(--accent); font-size:14px; text-transform:uppercase; letter-spacing:1px; margin-bottom:15px;">Level 2 Telemetry (Advanced)</h3>
+      
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+        <div class="step">
+          <label for="personalHours">Personal Project Hours</label>
+          <input type="number" id="personalHours" step="0.5" placeholder="Deep work hours">
+        </div>
+        <div class="step">
+          <label for="sleepHours">Sleep (Hours)</label>
+          <input type="number" id="sleepHours" step="0.5" placeholder="last night's rest">
+        </div>
+        <div class="step">
+          <label for="recoveryHours">Recovery Hours</label>
+          <input type="number" id="recoveryHours" step="0.5" placeholder="Rest/Recharge">
+        </div>
+        <div class="step">
+          <label for="identityScore">Identity Alignment (1-5)</label>
+          <select id="identityScore">
+            <option value="0">Not Set</option>
+            <option value="1">1 - Misaligned</option>
+            <option value="2">2 - Improving</option>
+            <option value="3">3 - On Track</option>
+            <option value="4">4 - High Growth</option>
+            <option value="5">5 - Fully Aligned</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:10px;">
+        <div class="step">
+          <label for="commuteTotal">Total Commute (min)</label>
+          <input type="number" id="commuteTotal" placeholder="Total time">
+        </div>
+        <div class="step">
+          <label for="commuteProductive">Productive Commute (min)</label>
+          <input type="number" id="commuteProductive" placeholder="Time spent working">
+        </div>
+      </div>
+    </div>
+
     <div class="step">
       <label for="images">Upload Images</label>
       <input type="file" id="images" multiple accept="image/*">

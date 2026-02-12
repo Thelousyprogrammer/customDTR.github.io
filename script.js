@@ -13,7 +13,7 @@ let dailyRecords = []; // Loaded from localStorage
 
 // === DAILY RECORD MODEL ===
 class DailyRecord {
-  constructor(date, hours, reflection, accomplishments, tools, images = []) {
+  constructor(date, hours, reflection, accomplishments, tools, images = [], l2Data = {}) {
     this.date = date;
     this.hours = hours;
     this.delta = hours - DAILY_TARGET_HOURS;
@@ -21,6 +21,14 @@ class DailyRecord {
     this.accomplishments = accomplishments;
     this.tools = tools;
     this.images = images;
+    
+    // Level 2 Metrics
+    this.personalHours = parseFloat(l2Data.personalHours) || 0;
+    this.sleepHours = parseFloat(l2Data.sleepHours) || 0;
+    this.recoveryHours = parseFloat(l2Data.recoveryHours) || 0;
+    this.commuteTotal = parseFloat(l2Data.commuteTotal) || 0;
+    this.commuteProductive = parseFloat(l2Data.commuteProductive) || 0;
+    this.identityScore = parseInt(l2Data.identityScore) || 0;
   }
 }
 
@@ -124,6 +132,16 @@ function submitDTR() {
   const files = Array.from(document.getElementById("images").files);
   const images = [];
 
+  // Collect L2 Data
+  const l2Data = {
+    personalHours: document.getElementById("personalHours").value,
+    sleepHours: document.getElementById("sleepHours").value,
+    recoveryHours: document.getElementById("recoveryHours").value,
+    commuteTotal: document.getElementById("commuteTotal").value,
+    commuteProductive: document.getElementById("commuteProductive").value,
+    identityScore: document.getElementById("identityScore").value
+  };
+
   if (files.length > 0) {
     let loaded = 0;
     files.forEach(file => {
@@ -132,19 +150,19 @@ function submitDTR() {
         images.push(e.target.result);
         loaded++;
         if (loaded === files.length) {
-          saveRecord(date, hours, reflection, accomplishments, tools, images);
+          saveRecord(date, hours, reflection, accomplishments, tools, images, l2Data);
         }
       };
       reader.readAsDataURL(file);
     });
   } else {
-    saveRecord(date, hours, reflection, accomplishments, tools, images);
+    saveRecord(date, hours, reflection, accomplishments, tools, images, l2Data);
   }
 }
 
 // Separate function to save
-function saveRecord(date, hours, reflection, accomplishments, tools, images) {
-  const record = new DailyRecord(date, hours, reflection, accomplishments, tools, images);
+function saveRecord(date, hours, reflection, accomplishments, tools, images, l2Data) {
+  const record = new DailyRecord(date, hours, reflection, accomplishments, tools, images, l2Data);
 
   // Remove any existing record for this date
   dailyRecords = dailyRecords.filter(r => r.date !== date);
@@ -183,8 +201,16 @@ function clearDTRForm() {
   const preview = document.getElementById("imagePreview");
   if (preview) preview.innerHTML = "";
 
-  const weeklyCounter = document.getElementById("weeklyCounter");
-  if (weeklyCounter) weeklyCounter.innerHTML = "";
+  const counterEl = document.getElementById("weeklyCounter");
+  if (counterEl) counterEl.innerHTML = "";
+
+  // Reset L2 fields
+  document.getElementById("personalHours").value = "";
+  document.getElementById("sleepHours").value = "";
+  document.getElementById("recoveryHours").value = "";
+  document.getElementById("commuteTotal").value = "";
+  document.getElementById("commuteProductive").value = "";
+  document.getElementById("identityScore").value = "0";
 }
 
 // === UPDATE WEEKLY COUNTER ===
