@@ -6,175 +6,151 @@
   <link rel="stylesheet" href="style.css?v=2.2">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
-    // Immediate theme sync
     document.documentElement.setAttribute("data-theme", localStorage.getItem("theme") || "f1");
   </script>
 </head>
 <body>
 
-<div class="container">
-  <div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-      <div>
-        <h1>Productivity Telemetry</h1>
-        <p class="subtitle">Advanced Session Analysis & Performance Metrics</p>
-      </div>
-      <div style="display: flex; gap: 10px; align-items: center;">
-        <label for="weekSelect" style="font-weight: bold; color: var(--accent);">View Window:</label>
-        <select id="weekSelect" class="telemetry-btn" style="background: var(--panel); text-transform: none; text-align: left;" onchange="updateView()">
+<div class="container telemetry-page">
+  <!-- Header: compact single row -->
+  <header class="telemetry-header card">
+    <div class="telemetry-header-inner">
+      <h1>Productivity Telemetry</h1>
+      <div class="telemetry-header-actions">
+        <label for="weekSelect" class="telemetry-label">Window</label>
+        <select id="weekSelect" class="telemetry-select" onchange="updateView()">
           <option value="all">Full OJT Span</option>
         </select>
         <button class="telemetry-btn" onclick="window.location.href='index.html'">Back to DTR</button>
       </div>
     </div>
-  </div>
+  </header>
 
-  <!-- Telemetry Overview Stats -->
-  <div class="telemetry-grid">
-    <div class="card" id="forecastCard">
-      <h3>OJT Forecast</h3>
-      <div style="display: flex; flex-direction: column; gap: 5px;">
-        <p id="remainingHoursText" style="font-size: 24px; font-weight: bold; color: var(--accent); margin: 0;">0 hrs remaining</p>
-        <p id="completionDateText" style="font-size: 18px; font-weight: bold; color: var(--color-excellent); margin: 0;">Projected: TBD</p>
-        <small id="avgPaceNote">Based on current pace</small>
+  <!-- Section: Key metrics (2 rows × 3 cols) -->
+  <section class="telemetry-section">
+    <h2 class="section-title">Overview</h2>
+    <div class="telemetry-stats-grid">
+      <div class="card stat-card" id="forecastCard">
+        <h3>OJT Forecast</h3>
+        <p id="remainingHoursText" class="stat-value stat-accent">0 hrs remaining</p>
+        <p id="completionDateText" class="stat-sub">Projected: TBD</p>
+        <small id="avgPaceNote" class="stat-note">Based on current pace</small>
       </div>
-    </div>
-    <div class="card" id="paceCalculatorCard">
-      <h3>Required Pace Calculator</h3>
-      <div style="display: flex; flex-direction: column; gap: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--border); padding-bottom: 5px;">
-           <small>Remaining:</small>
-           <span id="remHoursPace" style="font-weight: bold; color: var(--accent);">0h</span>
+      <div class="card stat-card" id="paceCalculatorCard">
+        <h3>Required Pace</h3>
+        <div class="stat-rows">
+          <div class="stat-row"><span>Remaining</span><span id="remHoursPace" class="stat-accent">0h</span></div>
+          <div class="stat-row"><span>Days left</span><span id="remDaysPace">0</span></div>
+          <div class="stat-row"><span>Need</span><span id="reqPaceValue" class="stat-excellent">0.0h/day</span></div>
+          <div class="stat-row"><span>Last 7d avg</span><span id="last7DayPace">0.0h/day</span></div>
         </div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--border); padding-bottom: 5px;">
-           <small>Remaining Days:</small>
-           <span id="remDaysPace" style="font-weight: bold;">0 days</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--border); padding-bottom: 5px;">
-           <small>Required Daily Avg:</small>
-           <span id="reqPaceValue" style="font-weight: bold; color: var(--color-excellent);">0.0h/day</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline;">
-           <small>Last 7-Day Avg:</small>
-           <span id="last7DayPace" style="font-weight: bold;">0.0h/day</span>
-        </div>
-        <p id="paceStatusMsg" style="font-size: 14px; font-weight: bold; margin-top: 5px; text-align: center; color: var(--color-good);">"Calculating..."</p>
+        <p id="paceStatusMsg" class="stat-msg">Calculating…</p>
       </div>
-    </div>
-    <div class="card" id="efficiencyCard">
-      <h3>Efficiency Metrics</h3>
-      <div style="display: flex; flex-direction: column; gap: 8px;">
-        <div style="display: flex; justify-content: space-between;">
-          <small>Time Efficiency (Act/Plan)</small>
-          <span id="timeEffValue" style="font-weight: bold;">0%</span>
-        </div>
-        <div style="display: flex; justify-content: space-between;">
-          <small>Energy Efficiency (Blocks/Hr)</small>
-          <span id="energyEffValue" style="font-weight: bold;">0%</span>
+      <div class="card stat-card" id="efficiencyCard">
+        <h3>Efficiency</h3>
+        <div class="stat-rows">
+          <div class="stat-row"><span>Time (Act/Plan)</span><span id="timeEffValue">0%</span></div>
+          <div class="stat-row"><span>Energy (Blocks/Hr)</span><span id="energyEffValue">0%</span></div>
         </div>
       </div>
-    </div>
-    <div class="card" id="recoveryCard">
-      <h3>Recovery & Fatigue</h3>
-      <div id="fatigueStatus" style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
-         <span id="fatigueIndicator" style="font-size: 24px;">🟢</span>
-         <span id="fatigueLabel" style="font-weight: bold; font-size: 18px;">Stable</span>
-      </div>
-      <small id="fatigueNote">Sustainability Check</small>
-    </div>
-    <div class="card" id="momentumCard">
-      <h3>Momentum & Consistency</h3>
-      <div style="display: flex; flex-direction: column; gap: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline;">
-          <small>Momentum Index</small>
-          <span id="momentumValue" style="font-weight: bold;">0%</span>
+      <div class="card stat-card" id="recoveryCard">
+        <h3>Recovery & Fatigue</h3>
+        <div class="stat-status">
+          <span id="fatigueIndicator" class="stat-emoji">🟢</span>
+          <span id="fatigueLabel" class="stat-status-label">Stable</span>
         </div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline;">
-          <small>Consistency Streak</small>
-          <span id="streakValue" style="font-weight: bold;">0 Days</span>
+        <small id="fatigueNote" class="stat-note">Sustainability</small>
+      </div>
+      <div class="card stat-card" id="cogLoadCard">
+        <h3>Cognitive Load</h3>
+        <div class="stat-status">
+          <span id="cogIndicator" class="stat-emoji">🔋</span>
+          <span id="cogLabel" class="stat-status-label">Normal</span>
         </div>
-        <p id="momentumStatus" style="font-size: 14px; font-weight: bold; margin-top: 5px; text-align: center;">Stability Mode</p>
+        <small id="cogNote" class="stat-note">OJT + Personal</small>
+      </div>
+      <div class="card stat-card" id="momentumCard">
+        <h3>Momentum</h3>
+        <div class="stat-rows">
+          <div class="stat-row"><span>Index</span><span id="momentumValue">0%</span></div>
+          <div class="stat-row"><span>Streak (≥8h)</span><span id="streakValue">0 days</span></div>
+        </div>
+        <p id="momentumStatus" class="stat-msg">Stability</p>
       </div>
     </div>
-    <div class="card" id="cogLoadCard">
-      <h3>Cognitive Load Meter</h3>
-      <div id="cogStatus" style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
-         <span id="cogIndicator" style="font-size: 24px;">🔋</span>
-         <span id="cogLabel" style="font-weight: bold; font-size: 18px;">Normal</span>
+  </section>
+
+  <!-- Main chart: trajectory -->
+  <section class="telemetry-section">
+    <h2 class="section-title">Cumulative Progress vs Goal</h2>
+    <div class="card chart-card chart-card-wide">
+      <div class="chart-wrap chart-tall">
+        <canvas id="trajectoryChart"></canvas>
       </div>
-      <small id="cogNote">OJT + Deep Personal Work</small>
     </div>
-  </div>
+  </section>
 
-  <!-- Telemetry Charts -->
-  <div class="card" style="margin-top: 20px;">
-    <h3>Cumulative Trajectory vs Ideal (8h/day)</h3>
-    <div style="height: 350px;">
-      <canvas id="trajectoryChart"></canvas>
-    </div>
-  </div>
-
-  <div class="telemetry-grid">
-    <div class="card">
-        <h3>L2 Performance Scores</h3>
-        <div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
-            <div style="display:flex; justify-content:space-between;">
-                <small>Commute Utilization</small>
-                <span id="commuteEff" style="font-weight:bold;">0%</span>
-            </div>
-            <div style="display:flex; justify-content:space-between;">
-                <small>Evening Deep Work Score</small>
-                <span id="deepWorkScore" style="font-weight:bold;">0.0</span>
-            </div>
-            <div style="display:flex; justify-content:space-between;">
-                <small>Average Sleep</small>
-                <span id="avgSleep" style="font-weight:bold;">0.0h</span>
-            </div>
+  <!-- Daily performance: delta + hour distribution -->
+  <section class="telemetry-section">
+    <h2 class="section-title">Daily Performance</h2>
+    <div class="telemetry-charts-row">
+      <div class="card chart-card">
+        <h3>Session Delta (vs 8h)</h3>
+        <div class="chart-wrap">
+          <canvas id="deltaChart"></canvas>
         </div>
+      </div>
+      <div class="card chart-card">
+        <h3>Hours Distribution</h3>
+        <div class="chart-wrap">
+          <canvas id="hourDistChart"></canvas>
+        </div>
+      </div>
     </div>
-    <div class="chart-container">
-      <h3>Identity Alignment (Weekly)</h3>
-      <canvas id="identityChart"></canvas>
-    </div>
-    <div class="chart-container">
-      <h3>Energy Zone Distribution</h3>
-      <canvas id="energyZoneChart"></canvas>
-    </div>
-  </div>
+  </section>
 
-  <div class="telemetry-grid">
-    <div class="chart-container">
-      <h3>Session Delta History</h3>
-      <canvas id="deltaChart"></canvas>
+  <!-- Weekly trend -->
+  <section class="telemetry-section">
+    <h2 class="section-title">Weekly Velocity</h2>
+    <div class="card chart-card chart-card-wide">
+      <div class="chart-wrap">
+        <canvas id="weeklyTrendChart"></canvas>
+      </div>
     </div>
-    <div class="chart-container">
-      <h3>Daily Hour Distribution</h3>
-      <canvas id="hourDistChart"></canvas>
-    </div>
-  </div>
+  </section>
 
-  <div class="card" style="margin-top: 20px;">
-    <h3>Weekly Velocity Trend</h3>
-    <div style="height: 300px;">
-      <canvas id="weeklyTrendChart"></canvas>
+  <!-- L2 & wellness -->
+  <section class="telemetry-section">
+    <h2 class="section-title">L2 Telemetry & Wellness</h2>
+    <div class="telemetry-charts-row telemetry-charts-three">
+      <div class="card stat-card">
+        <h3>L2 Scores</h3>
+        <div class="stat-rows">
+          <div class="stat-row"><span>Commute use</span><span id="commuteEff">0%</span></div>
+          <div class="stat-row"><span>Deep work</span><span id="deepWorkScore">0.0</span></div>
+          <div class="stat-row"><span>Avg sleep</span><span id="avgSleep">0.0h</span></div>
+        </div>
+      </div>
+      <div class="card chart-card">
+        <h3>Identity Alignment</h3>
+        <div class="chart-wrap">
+          <canvas id="identityChart"></canvas>
+        </div>
+      </div>
+      <div class="card chart-card">
+        <h3>Energy Zones</h3>
+        <div class="chart-wrap">
+          <canvas id="energyZoneChart"></canvas>
+        </div>
+      </div>
     </div>
-  </div>
+  </section>
 
-  <div id="loadingOverlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; color: var(--accent); flex-direction: column;">
-    <div style="width: 50px; height: 50px; border: 5px solid var(--panel); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite;"></div>
-    <p style="margin-top: 15px; font-family: var(--font-heading); letter-spacing: 2px;">SYNCING TELEMETRY DATA...</p>
+  <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loading-spinner"></div>
+    <p>Syncing telemetry…</p>
   </div>
 </div>
-
-<style>
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-canvas {
-  width: 100% !important;
-  height: 90% !important;
-}
-</style>
 
 <script src="telemetry.js"></script>
 </body>

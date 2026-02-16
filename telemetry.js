@@ -7,6 +7,7 @@ const COLORS = {
   excellent: '#FF00FF',
   good: '#00FF00',
   warning: '#FFF000',
+  neutral: getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#ffffff',
   text: getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#fff'
 };
 
@@ -277,7 +278,7 @@ function renderTelemetry(logs, selectedWeek = "all") {
         momentumStatusEl.style.color = COLORS.accent;
     } else {
         momentumStatusEl.innerText = "STABILITY MODE";
-        momentumStatusEl.style.color = COLORS.neutral;
+        momentumStatusEl.style.color = COLORS.text;
     }
 
     // Streak Calculation (Consistency Tracker)
@@ -576,20 +577,14 @@ function renderContextualCharts(logs, selectedWeek) {
 
 function renderEnergyZoneChart(logs) {
     const ctx = document.getElementById('energyZoneChart').getContext('2d');
-    
-    const zones = {
-        "Elite": 0,    // 8h+ OJT + 1h Personal
-        "Overdrive": 0, // 9h+ Total
-        "Solid": 0,    // 8h OJT
-        "Survival": 0, // 6-7h
-        "Recovery": 0  // <6h
-    };
+
+    const zoneOrder = ["Recovery", "Survival", "Solid", "Overdrive", "Elite"];
+    const zones = { Elite: 0, Overdrive: 0, Solid: 0, Survival: 0, Recovery: 0 };
 
     logs.forEach(r => {
         const ojt = r.hours;
         const personal = r.personalHours || 0;
         const total = ojt + personal;
-
         if (ojt >= 8 && personal >= 1) zones["Elite"]++;
         else if (total > 9) zones["Overdrive"]++;
         else if (ojt >= 8) zones["Solid"]++;
@@ -597,37 +592,34 @@ function renderEnergyZoneChart(logs) {
         else zones["Recovery"]++;
     });
 
-    const data = Object.values(zones);
-    const labels = Object.keys(zones);
+    const data = zoneOrder.map(z => zones[z]);
+    const colors = ['#555', '#FFF000', '#00FF00', '#ff1e00', '#FF00FF'];
 
     charts.energy = new Chart(ctx, {
-        type: 'polarArea',
+        type: 'bar',
         data: {
-            labels: labels,
+            labels: zoneOrder,
             datasets: [{
+                label: 'Days',
                 data: data,
-                backgroundColor: [
-                    '#FF00FF', // Elite
-                    '#ff1e00', // Overdrive
-                    '#00FF00', // Solid
-                    '#FFF000', // Survival
-                    '#333333'  // Recovery
-                ],
-                borderWidth: 0
+                backgroundColor: colors,
+                borderColor: colors.map(c => c),
+                borderWidth: 1
             }]
         },
         options: {
+            indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'right' }
-            },
+            plugins: { legend: { display: false } },
             scales: {
-                r: {
+                x: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 },
                     grid: { color: 'rgba(255,255,255,0.05)' },
-                    angleLines: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { backdropColor: 'transparent', color: COLORS.text }
-                }
+                    title: { display: true, text: 'Days' }
+                },
+                y: { grid: { display: false } }
             }
         }
     });

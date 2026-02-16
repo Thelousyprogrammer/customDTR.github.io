@@ -62,6 +62,17 @@ function getWeekHours(weekNumber) {
     .reduce((sum, r) => sum + r.hours, 0);
 }
 
+/** Get start and end dates for a week number (relative to OJT_START). */
+function getWeekDateRange(weekNumber) {
+  const ref = new Date(OJT_START.getFullYear(), OJT_START.getMonth(), OJT_START.getDate());
+  const start = new Date(ref);
+  start.setDate(ref.getDate() + (weekNumber - 1) * 7);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const fmt = d => `${d.toLocaleDateString("en-US", { month: "short" })} ${d.getDate()}, ${d.getFullYear()}`;
+  return { start: fmt(start), end: fmt(end), startDate: start, endDate: end };
+}
+
 function getTodayFileName(prefix, ext) {
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -182,6 +193,7 @@ function saveRecord(date, hours, reflection, accomplishments, tools, images, l2D
   updateWeeklyCounter(record.date);
   renderDailyGraph();
   renderWeeklyGraph();
+  updateExportWeekOptions();
 
   clearDTRForm();
   alert("Daily DTR saved and form cleared!");
@@ -293,6 +305,32 @@ if (record.images && record.images.length) {
   else if (weekHours < maxWeeklyHours) weekColor = COLORS.good; // personal highest
   else weekColor = COLORS.excellent; // highest overall
 
+  // Identity score mapping
+  const identityMap = {
+    0: "Not Set",
+    1: "1 - Misaligned",
+    2: "2 - Improving",
+    3: "3 - On Track",
+    4: "4 - High Growth",
+    5: "5 - Fully Aligned"
+  };
+
+  // Level 2 Telemetry HTML
+  const identityText = identityMap[record.identityScore] || "Not Set";
+  const commuteEff = record.commuteTotal > 0 
+    ? ((record.commuteProductive / record.commuteTotal) * 100).toFixed(1) + "%" 
+    : "0%";
+
+  const telemetryHTML = `
+    <div style="margin-top:20px; padding-top:15px; border-top: 1px dotted var(--border); display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:0.9em;">
+      <div><strong>Personal Hours:</strong> ${record.personalHours || 0}h</div>
+      <div><strong>Sleep Duration:</strong> ${record.sleepHours || 0}h</div>
+      <div><strong>Recovery Time:</strong> ${record.recoveryHours || 0}h</div>
+      <div><strong>Identity Alignment:</strong> ${identityText}</div>
+      <div style="grid-column: span 2;"><strong>Commute Efficiency:</strong> ${record.commuteProductive || 0} / ${record.commuteTotal || 0} min (${commuteEff})</div>
+    </div>
+  `;
+
   s.innerHTML = `
     <h2>Session Delta Summary</h2>
 
@@ -318,13 +356,14 @@ if (record.images && record.images.length) {
     </p>
 
     <p><strong>Reflection:</strong></p>
-    <p>${record.reflection || ""}</p>
+    <p>${record.reflection || "-"}</p>
 
     <p><strong>Accomplishments:</strong></p>
-    <ul>${record.accomplishments?.map(a => `<li>${a}</li>`).join("") || ""}</ul>
+    <ul>${Array.isArray(record.accomplishments) ? record.accomplishments.map(a => `<li>${a}</li>`).join("") : (record.accomplishments ? `<li>${record.accomplishments}</li>` : "-")}</ul>
 
-    <p><strong>Tools Used:</strong> ${record.tools?.join(", ") || ""}</p>
+    <p><strong>Tools Used:</strong> ${Array.isArray(record.tools) ? record.tools.join(", ") : (record.tools || "-")}</p>
 
+    ${telemetryHTML}
     ${imagesHTML}
   `;
 }
@@ -419,14 +458,14 @@ function loadReflectionViewer() {
     if (r.delta <= 0) deltaColor = COLORS.warning;
     else if (r.delta > GREAT_DELTA_THRESHOLD) deltaColor = COLORS.good;
 
-    const accomplishmentsHTML = r.accomplishments && r.accomplishments.length
+    const accomplishmentsHTML = Array.isArray(r.accomplishments) && r.accomplishments.length
     ? `<div style="margin-top:8px;">
          <strong>Accomplishments:</strong>
          <ul style="margin:4px 0 8px 18px; padding:0;">
            ${r.accomplishments.map(a => `<li>${a}</li>`).join("")}
          </ul>
        </div>`
-    : "";
+    : (r.accomplishments && typeof r.accomplishments === 'string' ? `<p><strong>Accomplishments:</strong> ${r.accomplishments}</p>` : "");
 
     const imagesHTML = r.images && r.images.length
       ? `<div class="dtr-images" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">
@@ -434,9 +473,9 @@ function loadReflectionViewer() {
          </div>`
       : "";
 
-    const toolsHTML = r.tools && r.tools.length
+    const toolsHTML = Array.isArray(r.tools) && r.tools.length
       ? `<p><strong>Tools Used:</strong> ${r.tools.join(", ")}</p>`
-      : "";
+      : (r.tools ? `<p><strong>Tools Used:</strong> ${r.tools}</p>` : "");
 
     const div = document.createElement("div");
     div.className = "reflection-item";
@@ -591,7 +630,16 @@ document.addEventListener("click", e => {
   document.getElementById("editDate").value = r.date;
   document.getElementById("editHours").value = r.hours;
   document.getElementById("editReflection").value = r.reflection;
-  document.getElementById("editTools").value = r.tools.join(", ");
+  document.getElementById("editAccomplishments").value = Array.isArray(r.accomplishments) ? r.accomplishments.join("\n") : (r.accomplishments || "");
+  document.getElementById("editTools").value = Array.isArray(r.tools) ? r.tools.join(", ") : (r.tools || "");
+
+  // Update L2 fields
+  document.getElementById("editPersonalHours").value = r.personalHours || 0;
+  document.getElementById("editSleepHours").value = r.sleepHours || 0;
+  document.getElementById("editRecoveryHours").value = r.recoveryHours || 0;
+  document.getElementById("editIdentityScore").value = r.identityScore || 0;
+  document.getElementById("editCommuteTotal").value = r.commuteTotal || 0;
+  document.getElementById("editCommuteProductive").value = r.commuteProductive || 0;
 
   document.getElementById("editModal").style.display = "flex";
 });
@@ -603,30 +651,52 @@ function saveEditModal() {
   const date = document.getElementById("editDate").value;
   const hours = parseFloat(document.getElementById("editHours").value);
   const reflection = document.getElementById("editReflection").value;
+  const accomplishments = document.getElementById("editAccomplishments").value
+    .split("\n")
+    .map(a => a.trim())
+    .filter(Boolean);
   const tools = document.getElementById("editTools").value
     .split(",")
     .map(t => t.trim())
     .filter(Boolean);
 
+  const l2Data = {
+    personalHours: document.getElementById("editPersonalHours").value,
+    sleepHours: document.getElementById("editSleepHours").value,
+    recoveryHours: document.getElementById("editRecoveryHours").value,
+    commuteTotal: document.getElementById("editCommuteTotal").value,
+    commuteProductive: document.getElementById("editCommuteProductive").value,
+    identityScore: document.getElementById("editIdentityScore").value
+  };
+
   const old = dailyRecords[editingIndex];
 
+  // Update the record
   dailyRecords[editingIndex] = new DailyRecord(
     date,
     hours,
     reflection,
-    old.accomplishments || [],
+    accomplishments,
     tools,
-    old.images || []
+    old.images || [],
+    l2Data
   );
+
+  // Re-sort in case date changed
+  dailyRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
 
   localStorage.setItem("dtr", JSON.stringify(dailyRecords));
 
   closeEditModal();
   loadReflectionViewer();
-  showSummary(dailyRecords[editingIndex]);
+  
+  // Find the new index of the edited record to show correct summary
+  const newIndex = dailyRecords.findIndex(r => r.date === date);
+  showSummary(dailyRecords[newIndex]);
+  
   renderDailyGraph();
   renderWeeklyGraph();
-  alert("Reflection updated successfully.");
+  alert("Record updated successfully!");
 }
 
 // === MODAL CONTROLS ===
@@ -653,7 +723,50 @@ window.addEventListener("DOMContentLoaded", () => {
     showSummary({});
     updateWeeklyCounter();
   }
+
+  updateExportWeekOptions();
+  updateExportWeekRangeLabel();
 });
+
+// === UPDATE EXPORT WEEK OPTIONS ===
+function updateExportWeekOptions() {
+  const select = document.getElementById("exportWeekSelect");
+  if (!select) return;
+
+  const currentValue = select.value;
+  select.innerHTML = '<option value="all">All Weeks</option>';
+
+  const weeks = [...new Set(dailyRecords.map(r => getWeekNumber(new Date(r.date))))].sort((a, b) => b - a);
+
+  weeks.forEach(w => {
+    const range = getWeekDateRange(w);
+    const opt = document.createElement("option");
+    opt.value = w;
+    opt.textContent = `Week ${w}`;
+    opt.title = `${range.start} – ${range.end}`;
+    select.appendChild(opt);
+  });
+
+  if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
+    select.value = currentValue;
+  }
+  updateExportWeekRangeLabel();
+}
+
+/** Update the visible label for the selected export week range. */
+function updateExportWeekRangeLabel() {
+  const select = document.getElementById("exportWeekSelect");
+  const label = document.getElementById("exportWeekRangeLabel");
+  if (!select || !label) return;
+  const val = select.value;
+  if (val === "all") {
+    label.textContent = "";
+    return;
+  }
+  const range = getWeekDateRange(parseInt(val, 10));
+  const short = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" });
+  label.textContent = `${short(range.startDate)} – ${short(range.endDate)}`;
+}
 
 // EXPORT FUNCTIONS AND IMAGE PREVIEW
 
@@ -664,58 +777,83 @@ function exportPDF() {
   let y = 15;
 
   doc.setFontSize(16);
+  doc.setTextColor(255, 30, 0); // F1 Red
   doc.text("Daily DTR Report", 105, y, { align: "center" });
   y += 10;
+  doc.setTextColor(0, 0, 0);
 
   dailyRecords.forEach(r => {
-    doc.setFontSize(12);
-    doc.text(`Date: ${r.date}`, 10, y); y += 6;
-    doc.text(`Hours Worked: ${r.hours}`, 10, y); y += 6;
-    doc.text(`Delta: ${r.delta >= 0 ? "+" : ""}${r.delta.toFixed(2)} hours`, 10, y); y += 6;
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'bold');
+    doc.text(`Date: ${r.date} | Hours Worked: ${r.hours} | Delta: ${r.delta >= 0 ? "+" : ""}${r.delta.toFixed(2)}`, 10, y); 
+    y += 6;
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(10);
 
-    doc.text("Reflection:", 10, y); y += 6;
-    const lines = doc.splitTextToSize(r.reflection, 180);
-    lines.forEach(line => { doc.text(line, 10, y); y += 6; });
+    doc.text("Reflection:", 10, y); y += 5;
+    const lines = doc.splitTextToSize(r.reflection || "-", 180);
+    lines.forEach(line => { doc.text(line, 12, y); y += 5; });
 
-    if (r.accomplishments.length) {
-      doc.text("Accomplishments:", 10, y); y += 6;
+    if (Array.isArray(r.accomplishments) && r.accomplishments.length) {
+      doc.text("Accomplishments:", 10, y); y += 5;
       r.accomplishments.forEach(a => { 
-        doc.text("• " + a, 12, y); y += 6;
+        doc.text("• " + a, 14, y); y += 5;
       });
     }
 
-    if (r.tools.length) {
-      doc.text("Tools Used: " + r.tools.join(", "), 10, y); y += 6;
+    if (Array.isArray(r.tools) && r.tools.length) {
+      doc.text("Tools Used: " + r.tools.join(", "), 10, y); y += 5;
     }
 
-    y += 5;
-    if (y > 270) { doc.addPage(); y = 15; }
+    // Telemetry Section
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    const tel = `L2 Telemetry: P.Hours: ${r.personalHours || 0} | Sleep: ${r.sleepHours || 0} | Rec: ${r.recoveryHours || 0} | Align: ${r.identityScore || 0} | Commute: ${r.commuteProductive || 0}/${r.commuteTotal || 0} min`;
+    doc.text(tel, 10, y); 
+    y += 4;
+    doc.setTextColor(0,0,0);
+
+    y += 6;
+    if (y > 260) { doc.addPage(); y = 15; }
   });
 
   doc.save(getTodayFileName("Daily_DTR_Report", "pdf"));
 }
 
 // === WEEKLY DTR COMPILER ===
-function getWeeklyDTR() {
+function getWeeklyDTR(filterWeek = "all") {
   const weeks = {};
 
   dailyRecords.forEach(r => {
     const d = new Date(r.date);
     const week = getWeekNumber(d);
 
+    if (filterWeek !== "all" && week != filterWeek) return;
+
     if (!weeks[week]) {
       weeks[week] = {
         week,
         dateRange: r.date,
         totalHours: 0,
+        personalHours: 0,
+        sleepHours: 0,
+        recoveryHours: 0,
         accomplishments: [],
         tools: new Set()
       };
     }
 
     weeks[week].totalHours += r.hours;
-    r.accomplishments.forEach(a => weeks[week].accomplishments.push({ date: r.date, text: a }));
-    r.tools.forEach(t => weeks[week].tools.add(t));
+    weeks[week].personalHours += parseFloat(r.personalHours) || 0;
+    weeks[week].sleepHours += parseFloat(r.sleepHours) || 0;
+    weeks[week].recoveryHours += parseFloat(r.recoveryHours) || 0;
+    
+    if (Array.isArray(r.accomplishments)) {
+      r.accomplishments.forEach(a => weeks[week].accomplishments.push({ date: r.date, text: a }));
+    }
+    if (Array.isArray(r.tools)) {
+      r.tools.forEach(t => weeks[week].tools.add(t));
+    }
   });
 
   return Object.values(weeks).map(w => ({ ...w, tools: [...w.tools] }));
@@ -729,29 +867,63 @@ function exportWeeklyPDF() {
   const doc = new jsPDF("p", "mm", "a4");
   let y = 15;
 
+  const filterWeek = document.getElementById("exportWeekSelect").value;
+
   doc.setFontSize(16);
+  doc.setTextColor(255, 30, 0);
   doc.text("Weekly DTR Report", 105, y, { align: "center" });
   y += 10;
+  doc.setTextColor(0, 0, 0);
 
-  const weeks = getWeeklyDTR();
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const d = new Date();
+  doc.setFontSize(10);
+  doc.text(`Generated: ${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`, 105, y, { align: "center" });
+  y += 12;
+
+  const weeks = getWeeklyDTR(filterWeek);
+  if (weeks.length === 0) return alert("No records found for the selected week.");
+
   weeks.forEach(w => {
     doc.setFontSize(12);
-    doc.text(`Week ${w.week} | Total Hours: ${w.totalHours}`, 10, y); y += 6;
-    doc.text("Accomplishments & Tools:", 10, y); y += 6;
+    doc.setFont(undefined, 'bold');
+    doc.text(`Week ${w.week} Summary`, 10, y);
+    y += 6;
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(11);
+
+    doc.text(`Total OJT Hours: ${w.totalHours.toFixed(1)}`, 10, y); y += 6;
+
+    // Weekly Telemetry Totals
+    doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Weekly Telemetry: Deep Work: ${w.personalHours.toFixed(1)}h | Sleep: ${w.sleepHours.toFixed(1)}h | Recovery: ${w.recoveryHours.toFixed(1)}h`, 10, y);
+    y += 8;
+    doc.setTextColor(0,0,0);
+
+    doc.setFontSize(11);
+    doc.text("Accomplishments & Contributions:", 10, y); y += 6;
+    doc.setFontSize(10);
 
     w.accomplishments.forEach(a => {
-      doc.splitTextToSize(`• ${a.text}`, 180).forEach(line => { doc.text(line, 12, y); y += 6; });
+      doc.splitTextToSize(`• [${a.date}] ${a.text}`, 180).forEach(line => { 
+        doc.text(line, 14, y); 
+        y += 5;
+        if (y > 275) { doc.addPage(); y = 15; }
+      });
     });
 
     if (w.tools.length) {
-      doc.text("Tools Used: " + w.tools.join(", "), 12, y); y += 6;
+      y += 2;
+      doc.text("Tools Utilized: " + w.tools.join(", "), 10, y); y += 6;
     }
 
-    y += 5;
-    if (y > 270) { doc.addPage(); y = 15; }
+    y += 10;
+    if (y > 260) { doc.addPage(); y = 15; }
   });
 
-  doc.save(getTodayFileName("Weekly_DTR_Report", "pdf"));
+  const fileName = filterWeek === "all" ? "Whole_OJT_Weekly_Report" : `Weekly_DTR_Report_Week_${filterWeek}`;
+  doc.save(getTodayFileName(fileName, "pdf"));
 }
 
 // Preview selected images

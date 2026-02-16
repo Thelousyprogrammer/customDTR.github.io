@@ -144,6 +144,7 @@
     <div id="reflectionViewer" class="viewer-box">
       <p class="empty">No reflections saved yet.</p>
     </div>
+  </div>
 
   <div class="card" style="position: relative;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -168,34 +169,90 @@
     <div id="weeklyGraph" class="contribution-graph" style="grid-template-rows: 1fr; grid-auto-flow: column;"></div>
   </div>
 
-    <div class="viewer-actions">
-      <button onclick="exportPDF()">Export All DTRs (PDF)</button>
-      <button onclick="exportWeeklyPDF()">Export Weekly DTR (PDF)</button>
+  <!-- DTR Exports -->
+  <div class="card export-card">
+    <h2>DTR Exports</h2>
+    <div class="export-actions">
+      <button onclick="exportPDF()">Export All</button>
+      <span class="export-divider">|</span>
+      <label for="exportWeekSelect" class="export-label">Week</label>
+      <select id="exportWeekSelect" onchange="updateExportWeekRangeLabel()" title="Choose a week to export">
+          <option value="all">All Weeks</option>
+        </select>
+      <span id="exportWeekRangeLabel" class="export-week-range" aria-live="polite"></span>
+      <button onclick="exportWeeklyPDF()">Export Week</button>
     </div>
+  </div>
 </div>
 
 <div id="editModal" class="modal">
-  <div class="modal-content">
-    <h3>Edit DTR Record</h3>
+  <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
+    <h3 style="margin-top: 0; padding-bottom: 10px; border-bottom: 2px solid var(--accent);">Edit DTR Record</h3>
 
-    <label>Date</label>
-    <input type="date" id="editDate">
+    <div class="edit-row-top" style="margin-bottom: 15px;">
+      <div class="step">
+        <label>Date</label>
+        <input type="date" id="editDate">
+      </div>
+      <div class="step">
+        <label>Hours Worked</label>
+        <input type="number" id="editHours" step="0.1" min="0">
+      </div>
+    </div>
 
-    <label>Hours</label>
-    <input type="number" id="editHours" step="0.1">
+    <div class="step">
+      <label>Daily Reflection</label>
+      <textarea id="editReflection" class="edit-reflection" rows="4" placeholder="What did you learn today?"></textarea>
+    </div>
 
-    <label>Reflection</label>
-    <input type="text" id="editReflection">
+    <div class="step">
+      <label>Accomplishments (one per line)</label>
+      <textarea id="editAccomplishments" class="edit-accomplishments" rows="5" placeholder="Task A&#10;Task B"></textarea>
+    </div>
 
-    <label>Accomplishments (comma separated)</label>
-    <input type="text" id="editAccomplishments">
+    <div class="step">
+      <label>Tools Used (comma separated)</label>
+      <input type="text" id="editTools" class="edit-tools" placeholder="VS Code, Chrome">
+    </div>
 
-    <label>Tools Used (comma separated)</label>
-    <input type="text" id="editTools">
+    <h4 style="color: var(--accent); font-size: 13px; text-transform: uppercase; margin: 15px 0 10px 0; letter-spacing: 1px;">Level 2 Telemetry</h4>
+    <div class="edit-telemetry-grid" style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,30,0,0.2);">
+      <div class="step">
+        <label>Personal Hours</label>
+        <input type="number" id="editPersonalHours" step="0.5" min="0">
+      </div>
+      <div class="step">
+        <label>Sleep (Hours)</label>
+        <input type="number" id="editSleepHours" step="0.5" min="0">
+      </div>
+      <div class="step">
+        <label>Recovery Hours</label>
+        <input type="number" id="editRecoveryHours" step="0.5" min="0">
+      </div>
+      <div class="step">
+        <label>Identity Alignment</label>
+        <select id="editIdentityScore">
+          <option value="0">Not Set</option>
+          <option value="1">1 - Misaligned</option>
+          <option value="2">2 - Improving</option>
+          <option value="3">3 - On Track</option>
+          <option value="4">4 - High Growth</option>
+          <option value="5">5 - Fully Aligned</option>
+        </select>
+      </div>
+      <div class="step">
+        <label>Total Commute (min)</label>
+        <input type="number" id="editCommuteTotal" min="0">
+      </div>
+      <div class="step">
+        <label>Productive Commute (min)</label>
+        <input type="number" id="editCommuteProductive" min="0">
+      </div>
+    </div>
 
-    <div class="modal-actions">
-      <button onclick="closeEditModal()">Cancel</button>
-      <button type="button" onclick="saveEditModal()">Save</button>
+    <div class="modal-actions" style="border-top: 1px solid var(--border); padding-top: 15px;">
+      <button onclick="closeEditModal()" style="background: transparent; color: var(--text); border: 1px solid var(--border);">Cancel</button>
+      <button type="button" onclick="saveEditModal()">Save Changes</button>
     </div>
   </div>
 </div>
