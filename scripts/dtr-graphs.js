@@ -11,28 +11,50 @@ function renderDailyGraph() {
     container.innerHTML = "";
     if (labelsContainer) labelsContainer.innerHTML = "";
 
-    // FIXED RANGE: January 2026 up to May 2026
-    const start = new Date(2026, 0, 1); // Jan 1, 2026
-    const end = new Date(2026, 4, 31);   // May 31, 2026
+    if (!dailyRecords || dailyRecords.length === 0) {
+        container.innerHTML = "<p class='empty-msg'>No records to visualize.</p>";
+        return;
+    }
+
+    // Strictly format YYYY-MM-DD for GMT+8 (Philippine Standard Time) logic
+    const toPSTISO = (date) => {
+        // Since the input date object d is incremented locally, 
+        // we just extract the local components directly
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    };
+
+    // Calculate Dynamic Range based strictly on records
+    const dates = dailyRecords.map(r => new Date(r.date));
+    const minDate = new Date(Math.min(...dates));
+    const maxDate = new Date(Math.max(...dates, new Date()));
     
-    // Start on Sunday to align grid columns
-    const firstDay = new Date(start);
-    firstDay.setDate(firstDay.getDate() - firstDay.getDay());
+    // Align Start to Sunday
+    const start = new Date(minDate);
+    start.setDate(start.getDate() - start.getDay());
+
+    // Align End to Saturday of the max week
+    const end = new Date(maxDate);
+    end.setDate(end.getDate() + (6 - end.getDay()));
 
     const logMap = {};
-    dailyRecords.forEach(r => logMap[r.date] = r.hours);
+    dailyRecords.forEach(r => logMap[r.date] = r);
 
     const usedMonthNames = new Set();
     let lastCol = -10; 
     let daysIdx = 0;
 
-    for (let d = new Date(firstDay); d <= end; d.setDate(d.getDate() + 1)) {
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         const colIndex = Math.floor(daysIdx / 7) + 1;
-        const dateStr = d.toISOString().split('T')[0];
-        const recordHours = logMap[dateStr] || 0;
+        const dateStr = toPSTISO(d);
+        const record = logMap[dateStr];
+        const recordHours = record ? record.hours : 0;
         
         const cell = document.createElement("div");
         cell.className = "day-cell";
+        if (record) cell.style.cursor = "pointer";
         
         let level = 0;
         if (recordHours >= 10) level = 3;
@@ -41,16 +63,29 @@ function renderDailyGraph() {
 
         cell.classList.add(`cell-${['empty', 'low', 'mid', 'high'][level]}`);
         
-        // TOOLTIP (REQUIRED)
-        const formattedDate = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-        cell.title = `${formattedDate}: ${recordHours}h`;
+        // TOOLTIP
+        const formattedDate = d.toLocaleDateString('en-PH', { 
+            weekday: 'short', 
+            month: 'short', 
+            day: 'numeric', 
+            year: 'numeric' 
+        });
+        cell.title = `${formattedDate}: ${recordHours}h ${record ? '(Click to view)' : ''}`;
+
+        // CLICKABLE INFO
+        cell.onclick = () => {
+            if (record) {
+                showSummary(record);
+                // Scroll to summary for UX
+                document.getElementById("summary").scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        };
 
         container.appendChild(cell);
 
         // Align label to the column where the 1st of the month falls
-        if (d.getDate() === 1 && d.getFullYear() === 2026) {
+        if (d.getDate() === 1) {
             const monthName = d.toLocaleString('default', { month: 'short' });
-            
             if (!usedMonthNames.has(monthName) && (colIndex - lastCol) > 2) {
                 usedMonthNames.add(monthName);
                 lastCol = colIndex;
