@@ -5,6 +5,11 @@
   --level-1: #FFF000; /* Yellow */
   --level-2: #00FF00; /* Green */
   --level-3: #FF00FF; /* Magenta */
+
+  --color-neutral: var(--level-0);
+  --color-warning: var(--level-1);
+  --color-good: var(--level-2);
+  --color-excellent: var(--level-3);
 }
 
 /* 2. Cadillac Overrides */
@@ -13,26 +18,31 @@
   --level-1: #c8002b; /* Red (Low) */
   --level-2: #2c28e8; /* Blue (Mid) */
   --level-3: #e8b01e; /* Gold (Highest) */
-  
+
   /* Map for JS */
   --color-highest: var(--level-3);
   --color-mid: var(--level-2);
   --color-low: var(--level-1);
   --color-empty: var(--level-0);
+
+  /* JS Readability Fix */
+  --color-neutral: #a0a0a0;
+  --color-warning: var(--level-1);
+  --color-good: var(--level-2);
+  --color-excellent: var(--level-3);
 }
 
 /* 3. APX Overrides */
 [data-theme="apx"] {
   --level-0: #1a1a1a; 
-  --level-1: #6b5a1a; /* Bronze */
-  --level-2: #cbb145; /* Gold */
-  --level-3: #fefefe; /* White */
+  --level-1: #ff4444; /* Custom Red (Low/Warning) */
+  --level-2: #00FF00; /* Global Green Default (Good) */
+  --level-3: #FF00FF; /* Global Magenta Default (Excellent) */
 
-  /* Map for JS */
-  --color-highest: var(--level-3);
-  --color-mid: var(--level-2);
-  --color-low: var(--level-1);
-  --color-empty: var(--level-0);
+  --color-neutral: #a0a0a0;
+  --color-warning: var(--level-1);
+  --color-good: var(--level-2);
+  --color-excellent: var(--level-3);
 }
 
 /* ==========================================
@@ -40,8 +50,8 @@
    ========================================== */
 @font-face {
   font-family: 'KH Interference';
-  src: local('KH Interference Regular'), local('KHInterference-Regular'),
-       url('fonts/KHInterference-Regular.woff2') format('truetype');
+  src: local('KH Interference Regular'),
+       url('../fonts/KHInterference-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -49,8 +59,8 @@
 
 @font-face {
   font-family: 'KH Interference';
-  src: local('KH Interference Bold'), local('KHInterference-Bold'),
-       url('fonts/KHInterference-Bold.woff2') format('truetype');
+  src: local('KH Interference Bold'),
+       url('../fonts/KHInterference-Bold.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -58,8 +68,8 @@
 
 @font-face {
   font-family: 'Formula1 Display';
-  src: local('Formula1 Display-Regular'), local('Formula1 Display-Regular'),
-       url('fonts/Formula1Display-Regular.woff2') format('truetype');
+  src: local('Formula1 Display-Regular'),
+       url('../fonts/Formula1Display-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -82,6 +92,13 @@
   --level-1: #FFF000; /* Caution Yellow */
   --level-2: #00FF00; /* Sector Green */
   --level-3: #FF00FF; /* Sector Purple */
+
+  /* Standardized JS Mappings */
+  --color-neutral: #a0a0a0; /* Readability Fix (Bright instead of dark) */
+  --color-warning: var(--level-1);
+  --color-good: var(--level-2);
+  --color-excellent: var(--level-3);
+
   /* Chart Overrides */
   --chart-grid: rgba(255, 255, 255, 0.05);
   --chart-fill: rgba(255, 30, 0, 0.2);
@@ -98,7 +115,7 @@
    ========================================== */
 @font-face {
   font-family: 'Cadillac Gothic';
-  src: url('fonts/CadillacGothic-Regular.woff2') format('truetype');
+  src: url('../fonts/CadillacGothic-Regular.woff2') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -106,7 +123,7 @@
 
 @font-face {
   font-family: 'Cadillac Gothic';
-  src: url('fonts/CadillacGothic-Medium.woff2') format('truetype');
+  src: url('../fonts/CadillacGothic-Medium.woff2') format('truetype');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
@@ -114,7 +131,7 @@
 
 @font-face {
   font-family: 'Cadillac Gothic Wide';
-  src: url('fonts/CadillacGothic-WideRegular.woff2') format('truetype');
+  src: url('../fonts/CadillacGothic-WideRegular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -122,7 +139,7 @@
 
 @font-face {
   font-family: 'Cadillac Gothic Wide Bold';
-  src: url('fonts/CadillacGothic-WideBold.woff2') format('truetype');
+  src: url('../fonts/CadillacGothic-WideBold.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -137,6 +154,10 @@
     --text: #ffffff;         /* White */
     --black: #000000;
 
+    /* Fonts mapping - FIXES FONT OVERRIDE BUG */
+    --font-heading: 'Cadillac Gothic Wide Bold', sans-serif;
+    --font-body: 'Cadillac Gothic Wide', sans-serif;
+
     /* Primary: Gold */
     --accent: #e8b01e; --accent-dark: #c8800d; --accent-light: #f5d98f;
     /* Secondary: Red */
@@ -149,6 +170,19 @@
     --color-mid: var(--tri);      /* Blue */
     --color-low: var(--sec);      /* Red */
     --color-empty: var(--bg);     /* Gray */
+
+    /* Standardized JS Mappings */
+    --color-neutral: #a0a0a0; /* Readability Fix */
+    --color-warning: var(--color-low);
+    --color-good: var(--color-mid);
+    --color-excellent: var(--color-highest);
+
+    /* Telemetry Levels Compatibility */
+    --level-0: var(--color-empty);
+    --level-1: var(--color-low);
+    --level-2: var(--color-mid);
+    --level-3: var(--color-highest);
+
     --chart-grid: rgba(255, 255, 255, 0.05);
     --chart-fill: rgba(232, 176, 30, 0.1);
     --chart-ideal: rgba(255, 255, 255, 0.15);
@@ -224,22 +258,27 @@
 /* --- Typography --- */
 [data-theme="cadillac"] h1, 
 [data-theme="cadillac"] h2, 
-[data-theme="cadillac"] h3 {
-    font-family: 'Cadillac Gothic Wide Bold', sans-serif;
+[data-theme="cadillac"] h3,
+[data-theme="cadillac"] .card h1,
+[data-theme="cadillac"] .card h2 {
+    font-family: var(--font-heading) !important;
     color: var(--accent);
     letter-spacing: 2px;
 }
 
+/* Force body and all text elements to Cadillac Gothic Wide */
+[data-theme="cadillac"],
+[data-theme="cadillac"] body,
 [data-theme="cadillac"] label,
 [data-theme="cadillac"] span,
 [data-theme="cadillac"] p,
-[data-theme="cadillac"] button,
+[data-theme="cadillac"] .subtitle,
+[data-theme="cadillac"] button:not([class*="btn-theme-"]), 
 [data-theme="cadillac"] input,
 [data-theme="cadillac"] textarea,
-[data-theme="cadillac"] body {
-    font-family: 'Cadillac Gothic Wide', sans-serif !important;
+[data-theme="cadillac"] select {
+    font-family: var(--font-body) !important;
     font-weight: 400;
-    color: var(--text);
 }
 
 /* High Contrast for readability on cards */
@@ -258,13 +297,13 @@
    ========================================== */
 @font-face {
   font-family: 'UAV OSD Sans';
-  src: url('fonts/UAV-OSD-Sans-Mono.woff2') format('truetype');
+  src: url('../fonts/UAV-OSD-Sans-Mono.woff2') format('woff2');
   font-display: swap;
 }
 
 @font-face {
   font-family: 'Jet Brains Mono';
-  src: url('fonts/JetBrainsMonoNerdFont-Regular.woff2') format('truetype');
+  src: url('../fonts/JetBrainsMonoNerdFont-Regular.woff2') format('woff2');
   font-display: swap;
   font-weight: 400;
 }
@@ -293,10 +332,20 @@
     /* Map these to the names JS looks for */
     --color-excellent: var(--color-highest);
     --color-good: var(--color-mid);
-    --color-warning: #ff4444; /* Standard alert red for APX */
+    /* Standardized JS Mappings */
+    --color-neutral: #ffffff; /* Readability Fix */
+    --color-warning: #ff4444; /* Keep the red for APX alert */
+    --color-good: var(--level-2);
+    --color-excellent: var(--level-3);
+
+    /* Telemetry Levels Compatibility */
+    --level-0: var(--color-empty);
+    --level-1: var(--color-low);
+    --level-2: var(--color-mid);
+    --level-3: var(--color-highest);
     
-    --chart-grid: rgba(203, 177, 69, 0.1); /* Faint gold grid */
-    --chart-fill: rgba(203, 177, 69, 0.05);
+    --chart-grid: rgba(255, 255, 255, 0.05);
+    --chart-fill: rgba(255, 255, 255, 0.05);
 
     /* Fonts */
     --font-heading: "UAV OSD Sans", monospace;
@@ -341,3 +390,47 @@
     box-shadow: 0 0 15px var(--apx-gold);
 }
 
+/* ==========================================
+   4. THEME-SPECIFIC BUTTON STYLES
+   ========================================== */
+.btn-theme-f1 {
+    background: #ff1e00 !important;
+    color: white !important;
+    border: 1px solid #ff1e00 !important;
+    font-family: "KH Interference", sans-serif !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.btn-theme-f1:hover {
+    background: #d41900 !important;
+    box-shadow: 0 0 10px rgba(255, 30, 0, 0.5);
+}
+
+.btn-theme-cadillac {
+    background: linear-gradient(to bottom, #e8b01e, #c8800d) !important;
+    color: black !important;
+    border: 1px solid #f5d98f !important;
+    font-family: 'Cadillac Gothic Wide', sans-serif !important;
+    font-weight: 700 !important;
+    text-transform: none;
+}
+
+.btn-theme-cadillac:hover {
+    background: #f5d98f !important;
+    box-shadow: 0 0 10px rgba(232, 176, 30, 0.5);
+}
+
+.btn-theme-apx {
+    background: transparent !important;
+    border: 1px solid #cbb145 !important;
+    color: #cbb145 !important;
+    font-family: "UAV OSD Sans", monospace !important;
+    text-transform: uppercase !important;
+}
+
+.btn-theme-apx:hover {
+    background: #cbb145 !important;
+    color: black !important;
+    box-shadow: 0 0 10px #cbb145;
+}

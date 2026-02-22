@@ -1,0 +1,507 @@
+/* ===== TELEMETRY PAGE LAYOUT ===== */
+.telemetry-page {
+  padding-bottom: 2rem;
+}
+
+.telemetry-header-inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.telemetry-header-inner h1 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.telemetry-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.telemetry-label {
+  font-weight: bold;
+  color: var(--accent);
+  font-size: 12px;
+  margin: 0;
+}
+
+.telemetry-select {
+  padding: 6px 10px;
+  font-size: 13px;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  border-radius: 6px;
+  min-width: 120px;
+}
+
+.telemetry-section {
+  margin-top: 1.5rem;
+}
+
+.section-title {
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+  margin: 0 0 10px 0;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+
+/* ===== STATS GRID (3 Columns) ===== */
+.telemetry-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.stat-card h3 {
+  font-size: 13px;
+  margin: 0 0 10px 0;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value { font-size: 1.25rem; margin: 0; font-weight: bold; }
+.stat-sub { font-size: 0.95rem; margin: 4px 0 0 0; font-weight: 600; }
+.stat-accent { color: var(--accent); }
+.stat-excellent { color: var(--color-good, #00FF00); }
+.stat-note { display: block; margin-top: 6px; font-size: 11px; opacity: 0.85; }
+
+.stat-rows { display: flex; flex-direction: column; gap: 6px; }
+.stat-row { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: baseline; 
+  font-size: 13px; 
+  border-bottom: 1px solid var(--border); 
+  padding-bottom: 4px; 
+}
+.stat-row:last-of-type { border-bottom: none; }
+
+.stat-status { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.stat-emoji { font-size: 1.25rem; }
+
+/* ===== CHART CONTAINERS ===== */
+.chart-card-wide { grid-column: 1 / -1; }
+.chart-wrap { height: 260px; position: relative; }
+.chart-tall { height: 320px; }
+.chart-wrap canvas { width: 100% !important; height: 100% !important; }
+
+.telemetry-charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.telemetry-charts-three {
+  grid-template-columns: 1fr 1.2fr 1.2fr;
+}
+
+/* ===== LOADING OVERLAY ===== */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: var(--accent);
+  font-family: var(--font-heading);
+}
+
+.loading-spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid var(--panel);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== RESPONSIVE FIXES ===== */
+@media (max-width: 768px) {
+  .telemetry-stats-grid,
+  .telemetry-charts-row,
+  .telemetry-charts-three { 
+    grid-template-columns: 1fr; 
+  }
+}
+
+/* ===== GITHUB STYLE CONTRIBUTION GRAPH ===== */
+.graph-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+.months-labels {
+  display: grid;
+  grid-template-columns: repeat(53, 12px); 
+  grid-template-rows: 16px; /* Force single row */
+  gap: 3px;
+  margin-left: 33px; /* 25px labels + 8px gap */
+  font-size: 10px;
+  color: var(--text);
+  opacity: 0.6;
+  height: 16px;
+  margin-bottom: 2px;
+  position: relative;
+  overflow: hidden; /* Prevent vertical stacking/wrapping */
+}
+
+.months-labels span {
+  white-space: nowrap;
+  grid-row: 1; /* Explicitly lock to first row */
+}
+
+.graph-body {
+  display: flex;
+  gap: 8px;
+}
+
+.days-labels {
+  display: flex;
+  flex-direction: column;
+  font-size: 10px;
+  color: var(--text);
+  opacity: 0.6;
+  width: 25px;
+  height: 102px;
+}
+
+.days-labels span {
+  height: 12px;
+  line-height: 12px;
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+}
+
+.graph-container {
+  display: grid;
+  grid-template-rows: repeat(7, 12px);
+  grid-auto-flow: column;
+  gap: 3px;
+  height: 102px;
+  pointer-events: auto; /* Ensure tooltips trigger */
+}
+
+.contribution-graph div {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background-color: var(--level-0);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: transform 0.1s ease, border-color 0.2s ease;
+}
+
+/* Individual Squares */
+.day-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background-color: var(--level-0);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.2s ease;
+}
+
+.day-cell:hover {
+  transform: scale(1.3);
+  z-index: 10;
+  cursor: pointer;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.cell-high { background-color: var(--level-3) !important; }
+.cell-mid  { background-color: var(--level-2) !important; }
+.cell-low  { background-color: var(--level-1) !important; }
+.cell-empty{ background-color: var(--level-0) !important; }
+
+/* Legend Styling */
+.graph-legend {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--text);
+  opacity: 0.6;
+}
+
+.legend-levels {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.legend-levels .day-cell {
+  cursor: default;
+  transform: none !important;
+}
+
+/* Weekly Specifics */
+.weekly-graph-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.month-block {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.month-name {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: bold;
+}
+
+.week-cells {
+  display: flex;
+  gap: 3px;
+}
+
+/* ===== HEATMAP LEGEND ===== */
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  margin-top: 12px;
+  opacity: 0.7;
+}
+
+.level-box {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.chart-card h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+  color: var(--accent);
+}
+
+/* Enhancing existing cards */
+.card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Adjustments for the 3-col layout on desktop */
+@media (min-width: 1024px) {
+  .telemetry-charts-three {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ===== SECTION HEADERS ===== */
+.section-header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+
+.ohlc-legend {
+  display: flex;
+  gap: 15px;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ===== PACE SLIDER ===== */
+.pace-slider-wrap {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+
+.pace-slider-wrap label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 4px;
+  color: var(--text);
+  opacity: 0.8;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+#paceSlider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 14px; /* Slightly taller for easier interaction */
+  background: transparent; /* Reset inherited */
+  border: none; /* Remove inherited box border */
+  outline: none;
+  margin: 4px 0;
+  cursor: pointer;
+}
+
+/* TRACK STYLING */
+#paceSlider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  border: none;
+}
+
+#paceSlider::-moz-range-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  border: none;
+}
+
+/* THUMB STYLING */
+#paceSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--accent);
+  border-radius: 2px;
+  cursor: pointer;
+  box-shadow: 0 0 8px var(--accent);
+  margin-top: -4px; /* Center thumb on track */
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+#paceSlider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--accent);
+  border-radius: 2px;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.stat-msg {
+  margin-top: 10px;
+  font-size: 11px;
+  font-style: italic;
+  opacity: 0.9;
+  color: var(--text);
+  min-height: 2.8em;
+  display: flex;
+  align-items: center;
+  border-left: 2px solid var(--accent);
+  padding: 4px 10px;
+  background: rgba(var(--accent-rgb, 255, 30, 0), 0.05);
+  border-radius: 0 4px 4px 0;
+}
+
+/* ===== SIMULATION BOX ===== */
+.sim-card {
+  border: 1px dashed var(--accent);
+  background: rgba(var(--accent-rgb, 255, 30, 0), 0.03);
+  transition: all 0.3s ease;
+}
+
+.sim-card.active {
+  border-style: solid;
+  box-shadow: 0 0 15px rgba(255, 30, 0, 0.2);
+  background: rgba(255, 30, 0, 0.07);
+}
+
+.sim-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.sim-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sim-body {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border);
+}
+
+.sim-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 20px;
+}
+
+.sim-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sim-input-group label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text);
+  opacity: 0.7;
+}
+
+.sim-input-group input {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 4px;
+  width: 80px;
+}
+
+.sim-note {
+  font-size: 11px;
+  margin-top: 12px;
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.btn-dim { opacity: 0.7; }
+.btn-dim:hover { opacity: 1; }
+.btn-danger { background: #660000; border-color: #ff0000; }
+.btn-accent { background: var(--accent); color: white; }

@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <title>Custom DTR – Delta Time System</title>
   <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="base.css">
-  <link rel="stylesheet" href="telemetry.css">
-  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/telemetry.css">
+  <link rel="stylesheet" href="css/theme.css">
 </head>
 <body>
 
@@ -23,9 +23,9 @@
   <!-- Theme Switcher -->
   <div class="card">
     <h2>DTR Theme</h2>
-    <button onclick="setTheme('f1')">F1 Theme</button>
-    <button onclick="setTheme('cadillac')">Cadillac</button>
-    <button onclick="setTheme('apx')">APX GP</button>
+    <button class="btn-theme-f1" onclick="setTheme('f1')">F1 Theme</button>
+    <button class="btn-theme-cadillac" onclick="setTheme('cadillac')">Cadillac</button>
+    <button class="btn-theme-apx" onclick="setTheme('apx')">APX GP</button>
   </div>
 
   <!-- DTR Input Form -->
@@ -149,16 +149,29 @@
   </div>
 
   <div class="card" style="position: relative;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
       <h2 style="margin: 0;">Daily Performance Graph</h2>
       <button class="telemetry-btn" onclick="window.location.href='telemetry.html'">Telemetry View</button>
     </div>
-    <div id="githubGraph" class="contribution-graph"></div>
-    <div style="font-size: 11px; margin-top: 5px; color: var(--text); opacity: 0.6;">
-      Less <span style="display:inline-block; width:10px; height:10px; background:var(--level-0)"></span>
-      <span style="display:inline-block; width:10px; height:10px; background:var(--level-1)"></span>
-      <span style="display:inline-block; width:10px; height:10px; background:var(--level-2)"></span>
-      <span style="display:inline-block; width:10px; height:10px; background:var(--level-3)"></span> More
+    
+    <div class="graph-wrapper">
+      <div id="monthLabels" class="months-labels"></div>
+      <div class="graph-body">
+        <div class="days-labels">
+          <span>&nbsp;</span><span>Mo</span><span>&nbsp;</span><span>We</span><span>&nbsp;</span><span>Fr</span><span>&nbsp;</span>
+        </div>
+        <div id="githubGraph" class="graph-container"></div>
+      </div>
+      <div class="graph-legend">
+        <div class="legend-levels">
+          <span>Less</span>
+          <div class="day-cell cell-empty"></div>
+          <div class="day-cell cell-low"></div>
+          <div class="day-cell cell-mid"></div>
+          <div class="day-cell cell-high"></div>
+          <span>More</span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -168,7 +181,9 @@
       <h2 style="margin: 0;">Weekly Summary Graph</h2>
       <button class="telemetry-btn" onclick="window.location.href='telemetry.html'">Telemetry View</button>
     </div>
-    <div id="weeklyGraph" class="contribution-graph" style="grid-template-rows: 1fr; grid-auto-flow: column;"></div>
+    <div class="graph-wrapper">
+      <div id="weeklyGraph" class="weekly-graph-container"></div>
+    </div>
   </div>
 
   <!-- DTR Exports -->
@@ -215,6 +230,13 @@
     <div class="step">
       <label>Tools Used (comma separated)</label>
       <input type="text" id="editTools" class="edit-tools" placeholder="VS Code, Chrome">
+    </div>
+    
+    <div class="step">
+      <label>Replace Images (optional)</label>
+      <input type="file" id="editImages" multiple accept="image/*" class="edit-images-input">
+      <small style="opacity: 0.6; font-size: 10px; color: var(--text);">Selecting new files will replace all existing images for this record.</small>
+      <div id="editImagePreview" style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;"></div>
     </div>
 
     <h4 style="color: var(--accent); font-size: 13px; text-transform: uppercase; margin: 15px 0 10px 0; letter-spacing: 1px;">Level 2 Telemetry</h4>
@@ -265,7 +287,15 @@
 <!-- FileSaver (needed for docx) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
-<script src="script.js?v=2.3"></script>
+<!-- Core Logic & Helpers -->
+<script src="scripts/dtr-core.js"></script>
+<!-- Logic Modules -->
+<script src="scripts/dtr-storage.js"></script>
+<script src="scripts/dtr-ui.js"></script>
+<script src="scripts/dtr-graphs.js"></script>
+<script src="scripts/dtr-exports.js"></script>
+<!-- Main Controller -->
+<script src="scripts/script.js"></script>
 
 </body>
 </html>
