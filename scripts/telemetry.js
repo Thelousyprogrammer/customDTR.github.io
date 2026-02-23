@@ -120,7 +120,12 @@ function updateTargetPace(val) {
         const sortedLogs = [...allLogs].sort((a,b) => new Date(a.date) - new Date(b.date));
         const logMap = {};
         sortedLogs.forEach(l => logMap[l.date] = l.hours);
-        const lastLogDate = sortedLogs.length ? new Date(sortedLogs[sortedLogs.length - 1].date) : new Date();
+        const lastLogDate = sortedLogs.length ? new Date(sortedLogs[sortedLogs.length - 1].date) : null;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const projectionStartDate = lastLogDate
+            ? (lastLogDate > today ? lastLogDate : today)
+            : today;
 
         let currentSum = 0;
         let projSum = 0;
@@ -131,15 +136,16 @@ function updateTargetPace(val) {
             const dayHours = logMap[dateStr];
             if (dayHours !== undefined) {
                 currentSum += dayHours;
-                projSum = currentSum;
+            }
+
+            if (d <= projectionStartDate) {
                 newProjection.push(null);
-            } else {
-                if (new Date(dateStr) > lastLogDate) {
-                    if (d.getDay() !== 0) projSum += pace;
-                    newProjection.push(Math.round(projSum));
-                } else {
-                    newProjection.push(null);
+                if (!lastLogDate || d <= lastLogDate) {
+                    projSum = currentSum;
                 }
+            } else {
+                if (d.getDay() !== 0) projSum += pace;
+                newProjection.push(Math.round(projSum));
             }
         }
         
@@ -201,7 +207,7 @@ function renderTelemetry(logs, selectedWeek = "all") {
 
     safeUpdate("completionDateText", `Projected: ${f.projectedDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}`);
     safeUpdate("remHoursPace", `${Math.round(f.remainingHours)}h`);
-    safeUpdate("remDaysPace", `${f.daysRemaining} days`);
+    safeUpdate("remDaysPace", `${f.workDaysRemaining} days`);
     safeUpdate("reqPaceValue", `${Math.ceil(f.requiredRate)}h/day`);
     safeUpdate("last7DayPace", `${Math.round(allLogs.slice(-7).reduce((s,r)=>s+r.hours,0)/Math.max(1, Math.min(7, allLogs.length)))}h/day`);
 

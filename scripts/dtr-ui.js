@@ -190,18 +190,28 @@ function loadReflectionViewer() {
 
         const div = document.createElement("div");
         div.className = "reflection-item";
+
+        // L2 Telemetry Formatting for Viewer
+        const identityLabels = { 0:"Not Set", 1:"1 - Misaligned", 2:"2 - Improving", 3:"3 - On Track", 4:"4 - High Growth", 5:"5 - Fully Aligned"};
+        const commuteEff = r.commuteTotal > 0 ? ((r.commuteProductive / r.commuteTotal) * 100).toFixed(1) + "%" : "N/A";
+
         div.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <strong>${item.originalIndex + 1}. ${r.date} (Week ${weekNum})</strong>
                 <button class="edit-btn" data-index="${item.originalIndex}">✎ Edit</button>
             </div>
             <p>${r.reflection}</p>
-            <small>
-                Hours: <span style="font-weight:bold;">${r.hours}</span> |
-                Delta: <span style="color:${deltaColor}; font-weight:bold;">${r.delta.toFixed(2)}</span> |
-                Trend: <span style="color:${item.trendColor}; font-weight:bold;">${item.trendLabel}</span> |
-                Week: <span style="font-weight:bold;">${weekHours} hrs</span>
-            </small>
+            <div style="margin: 8px 0; padding: 10px; background: rgba(255,255,255,0.02); border-radius: 6px; border-left: 3px solid var(--accent); font-size: 0.85em;">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px;">
+                    <div><strong>Hours:</strong> ${r.hours}h (Δ ${r.delta.toFixed(2)})</div>
+                    <div><strong>Trend:</strong> <span style="color:${item.trendColor}">${item.trendLabel}</span></div>
+                    <div><strong>Personal:</strong> ${r.personalHours || 0}h</div>
+                    <div><strong>Sleep:</strong> ${r.sleepHours || 0}h</div>
+                    <div><strong>Recovery:</strong> ${r.recoveryHours || 0}h</div>
+                    <div><strong>Identity:</strong> ${identityLabels[r.identityScore] || "Not Set"}</div>
+                    <div style="grid-column: span 2;"><strong>Commute Eff:</strong> ${commuteEff}</div>
+                </div>
+            </div>
             ${reflectionImagesHTML}
             <hr>
         `;

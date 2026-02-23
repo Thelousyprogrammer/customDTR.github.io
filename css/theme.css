@@ -10,6 +10,17 @@
   --color-warning: var(--level-1);
   --color-good: var(--level-2);
   --color-excellent: var(--level-3);
+
+  /* --- MODERN LED MATRIX UPGRADE --- */
+  --font-digital: "UAV OSD Sans", monospace;
+  --lcd-bg: rgba(0, 0, 0, 0.6);
+  --led-matrix: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.05) 0.5px,
+    transparent 0.5px
+  );
+  --led-matrix-size: 3px 3px;
+  --lcd-border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* 2. Cadillac Overrides */

@@ -60,21 +60,23 @@ console.log("Current Week:", curWeek); // Feb 10, Jan 26 start. 15 days diff. We
 console.log("Weekly Totals:", weeklyTotals);
 console.log("Momentum (Week 3 vs 2):", momentum); // Week 3 has 0 hours in mock data. Week 2 has 20. Momentum -100%?
 
-// Check Trajectory Ideal Line logic
-// 8h/day everyday vs weekdays
+// Check Trajectory baseline logic
+// Compare daily-allocation models and goal-paced workday model (Mon-Sat)
 let dayCounter = 0;
 let idealTotal = 0;
 const start = new Date(OJT_START_DATE);
 const end = new Date(TARGET_DEADLINE);
-let weekdays = 0;
+let workdaysMonSat = 0;
 
 for(let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     dayCounter++;
     idealTotal += 8;
-    if (d.getDay() !== 0 && d.getDay() !== 6) weekdays++;
+    if (d.getDay() !== 0) workdaysMonSat++;
 }
+const goalPacePerWorkday = MASTER_GOAL / Math.max(1, workdaysMonSat);
 console.log("Trajectory - Calendar Days:", dayCounter);
 console.log("Trajectory - Ideal Total (Everyday):", idealTotal);
-console.log("Trajectory - Work Days:", weekdays);
-console.log("Trajectory - Ideal Total (Workdays):", weekdays * 8);
+console.log("Trajectory - Work Days (Mon-Sat):", workdaysMonSat);
+console.log("Trajectory - Goal Pace Per Workday:", goalPacePerWorkday);
+console.log("Trajectory - Goal Pace Total:", goalPacePerWorkday * workdaysMonSat);
 

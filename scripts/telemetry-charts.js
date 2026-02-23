@@ -23,12 +23,19 @@ function renderTrajectoryChart(logs, customPace = null) {
     
     const start = new Date(OJT_START);
     const end = new Date(TARGET_DEADLINE);
+    const totalWorkDays = countWorkDays(start, end);
+    const goalPacePerWorkday = totalWorkDays > 0 ? Math.ceil(MASTER_TARGET_HOURS / totalWorkDays) : 0;
     
     const logMap = {};
     sortedLogs.forEach(l => logMap[l.date] = l.hours);
 
     const f = calculateForecast(logs);
-    const lastLogDate = sortedLogs.length ? new Date(sortedLogs[sortedLogs.length - 1].date) : new Date();
+    const lastLogDate = sortedLogs.length ? new Date(sortedLogs[sortedLogs.length - 1].date) : null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const projectionStartDate = lastLogDate
+        ? (lastLogDate > today ? lastLogDate : today)
+        : today;
     const projectedCumulative = [];
     let projSum = 0;
 
@@ -41,23 +48,24 @@ function renderTrajectoryChart(logs, customPace = null) {
         const dayHours = logMap[dateStr];
         if (dayHours !== undefined) {
             currentSum += dayHours;
+        }
+        
+        // Continuous ACTUAL line up to the most recent record
+        if (d <= projectionStartDate) {
             actualCumulative.push(currentSum);
-            projSum = currentSum;
+            if (!lastLogDate || d <= lastLogDate) {
+                projSum = currentSum;
+            }
             projectedCumulative.push(null);
         } else {
             actualCumulative.push(null);
-            if (new Date(dateStr) > lastLogDate) {
-                const day = d.getDay();
-                // Use projectionPace (either custom or recentAvg)
-                if (day !== 0) projSum += projectionPace; 
-                projectedCumulative.push(Math.round(projSum));
-            } else {
-                projectedCumulative.push(null);
-            }
+            const day = d.getDay();
+            if (day !== 0) projSum += projectionPace; 
+            projectedCumulative.push(Math.round(projSum));
         }
         
         const day = d.getDay();
-        if (day !== 0) idealSum += 8;
+        if (day !== 0) idealSum += goalPacePerWorkday;
         idealCumulative.push(idealSum);
     }
 
@@ -87,7 +95,7 @@ function renderTrajectoryChart(logs, customPace = null) {
                     spanGaps: true
                 },
                 { 
-                    label: 'Ideal (Mon-Sat 8h)', 
+                    label: 'Goal Pace (to 500h)', 
                     data: idealCumulative, 
                     borderColor: 'rgba(255,255,255,0.2)', 
                     borderDash: [5, 5], 
@@ -131,6 +139,19 @@ function renderTrajectoryChart(logs, customPace = null) {
             }
         }
     });
+}
+
+function countWorkDays(startDate, endDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(0, 0, 0, 0);
+
+    let count = 0;
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        if (d.getDay() !== 0) count++;
+    }
+    return count;
 }
 
 function renderEnergyZoneChart(logs) {

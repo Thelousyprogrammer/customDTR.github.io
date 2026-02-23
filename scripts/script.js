@@ -29,6 +29,39 @@ window.addEventListener("DOMContentLoaded", () => {
     if (typeof updateExportWeekRangeLabel === 'function') {
         updateExportWeekRangeLabel();
     }
+
+    // 5. Live Sync: Real-time Graph Updates
+    const syncGraphsRealTime = (dateId, hoursId) => {
+        const dateVal = document.getElementById(dateId).value;
+        const hoursVal = parseFloat(document.getElementById(hoursId).value);
+        
+        if (!dateVal || isNaN(hoursVal)) {
+            renderDailyGraph();
+            renderWeeklyGraph();
+            return;
+        }
+
+        // Create a temporary record set for simulation
+        const tempRecord = { date: dateVal, hours: hoursVal };
+        const mergedRecords = dailyRecords.filter(r => r.date !== dateVal);
+        mergedRecords.push(tempRecord);
+        mergedRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        renderDailyGraph(mergedRecords);
+        renderWeeklyGraph(mergedRecords);
+    };
+
+    // Listeners for Main Form
+    ['date', 'hours'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', () => syncGraphsRealTime('date', 'hours'));
+    });
+
+    // Listeners for Edit Modal
+    ['editDate', 'editHours'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', () => syncGraphsRealTime('editDate', 'editHours'));
+    });
 });
 
 // --- GLOBAL LISTENERS ---

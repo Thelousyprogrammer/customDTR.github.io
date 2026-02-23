@@ -3,7 +3,7 @@
  * Handles the rendering of GitHub-style contribution graphs
  */
 
-function renderDailyGraph() {
+function renderDailyGraph(records = dailyRecords) {
     const container = document.getElementById("githubGraph");
     const labelsContainer = document.getElementById("monthLabels");
     if (!container) return;
@@ -11,23 +11,21 @@ function renderDailyGraph() {
     container.innerHTML = "";
     if (labelsContainer) labelsContainer.innerHTML = "";
 
-    if (!dailyRecords || dailyRecords.length === 0) {
+    if (!records || records.length === 0) {
         container.innerHTML = "<p class='empty-msg'>No records to visualize.</p>";
         return;
     }
 
-    // Strictly format YYYY-MM-DD for GMT+8 (Philippine Standard Time) logic
+    // Helper to get YYYY-MM-DD in local time (preventing ISO timezone shift bug)
     const toPSTISO = (date) => {
-        // Since the input date object d is incremented locally, 
-        // we just extract the local components directly
         const y = date.getFullYear();
         const m = String(date.getMonth() + 1).padStart(2, '0');
         const d = String(date.getDate()).padStart(2, '0');
         return `${y}-${m}-${d}`;
     };
 
-    // Calculate Dynamic Range based strictly on records
-    const dates = dailyRecords.map(r => new Date(r.date));
+    // Calculate Dynamic Range based strictly on provided records
+    const dates = records.map(r => new Date(r.date));
     const minDate = new Date(Math.min(...dates));
     const maxDate = new Date(Math.max(...dates, new Date()));
     
@@ -40,7 +38,7 @@ function renderDailyGraph() {
     end.setDate(end.getDate() + (6 - end.getDay()));
 
     const logMap = {};
-    dailyRecords.forEach(r => logMap[r.date] = r);
+    records.forEach(r => logMap[r.date] = r);
 
     const usedMonthNames = new Set();
     let lastCol = -10; 
@@ -76,7 +74,6 @@ function renderDailyGraph() {
         cell.onclick = () => {
             if (record) {
                 showSummary(record);
-                // Scroll to summary for UX
                 document.getElementById("summary").scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         };
@@ -101,13 +98,13 @@ function renderDailyGraph() {
     }
 }
 
-function renderWeeklyGraph() {
+function renderWeeklyGraph(records = dailyRecords) {
     const container = document.getElementById("weeklyGraph");
     if (!container) return;
     container.innerHTML = "";
 
     const weeklyData = {};
-    dailyRecords.forEach(r => {
+    records.forEach(r => {
         const d = new Date(r.date);
         const month = d.toLocaleString('default', { month: 'short' });
         const year = d.getFullYear();

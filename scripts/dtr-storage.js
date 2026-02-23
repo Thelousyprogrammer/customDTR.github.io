@@ -14,10 +14,9 @@ function deleteLastRecord() {
     if (dailyRecords.length) {
         showSummary(dailyRecords[dailyRecords.length - 1]);
         updateWeeklyCounter(dailyRecords[dailyRecords.length - 1].date);
-    } else {
-        showSummary({});
-        updateWeeklyCounter();
     }
+    renderDailyGraph();
+    renderWeeklyGraph();
     alert("Last DTR entry deleted.");
 }
 
@@ -30,6 +29,8 @@ function clearAllRecords() {
     loadReflectionViewer();
     showSummary({});
     updateWeeklyCounter();
+    renderDailyGraph();
+    renderWeeklyGraph();
     alert("All DTR records cleared.");
 }
 

@@ -61,19 +61,51 @@
   gap: 14px;
 }
 
+.stat-card {
+  position: relative;
+  overflow: hidden;
+}
+
+/* scanline overlay for cards */
+.stat-card::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: var(--led-matrix);
+  background-size: var(--led-matrix-size);
+  pointer-events: none;
+  z-index: 1;
+}
+
 .stat-card h3 {
   font-size: 13px;
   margin: 0 0 10px 0;
   color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  font-family: var(--font-digital); /* Upgrade header */
 }
 
-.stat-value { font-size: 1.25rem; margin: 0; font-weight: bold; }
-.stat-sub { font-size: 0.95rem; margin: 4px 0 0 0; font-weight: 600; }
+.stat-value { 
+  font-size: 1.5rem; 
+  margin: 0; 
+  font-weight: bold; 
+  font-family: var(--font-digital); /* LED Update */
+  text-shadow: var(--led-glow); 
+  display: inline-block;
+}
+
+.stat-sub { 
+  font-size: 0.85rem; 
+  margin: 4px 0 0 0; 
+  font-weight: 600; 
+  font-family: var(--font-digital);
+  opacity: 0.9;
+}
+
 .stat-accent { color: var(--accent); }
 .stat-excellent { color: var(--color-good, #00FF00); }
-.stat-note { display: block; margin-top: 6px; font-size: 11px; opacity: 0.85; }
+.stat-note { display: block; margin-top: 6px; font-size: 11px; opacity: 0.8; font-family: var(--font-digital); }
 
 .stat-rows { display: flex; flex-direction: column; gap: 6px; }
 .stat-row { 
@@ -308,11 +340,23 @@
 /* Enhancing existing cards */
 .card {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 .card:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+}
+
+.card::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: var(--led-matrix);
+  background-size: var(--led-matrix-size);
+  pointer-events: none;
+  z-index: 1;
 }
 
 /* Adjustments for the 3-col layout on desktop */

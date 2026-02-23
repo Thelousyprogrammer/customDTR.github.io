@@ -31,6 +31,30 @@ body {
   border-radius: 12px;
   padding: 16px;
   margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* LED Matrix Overlay for all cards */
+.card::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: var(--led-matrix);
+  background-size: var(--led-matrix-size);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* LED Matrix Overlay for stat cards */
+.stat-card::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: var(--led-matrix);
+  background-size: var(--led-matrix-size);
+  pointer-events: none;
+  z-index: 1;
 }
 
 h1, h2 {
@@ -159,6 +183,24 @@ button:hover {
 .empty {
   text-align: center;
   opacity: 0.6;
+}
+
+.card h1 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-family: var(--font-digital);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: var(--led-glow);
+  color: var(--accent);
+}
+
+.subtitle {
+  margin-top: 5px;
+  font-size: 0.9rem;
+  opacity: 0.8;
+  font-family: var(--font-digital);
+  letter-spacing: 1px;
 }
 
 .telemetry-btn {
