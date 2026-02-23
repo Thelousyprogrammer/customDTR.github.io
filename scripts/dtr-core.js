@@ -94,7 +94,21 @@ function calculateForecast(logs = dailyRecords, overridePace = null) {
     const today = new Date();
     today.setHours(0,0,0,0);
     
-    // Calculate required rate based on working days (Mon-Sat) until deadline
+    // 1. Calculate Ideal Progress to Date (Single Source of Truth)
+    // Based on the trajectory chart's 8h/day workday baseline
+    let idealHoursToDate = 0;
+    let tempDate = new Date(OJT_START);
+    while (tempDate <= today) {
+        if (tempDate.getDay() !== 0) { // Mon-Sat
+            idealHoursToDate += DAILY_TARGET_HOURS;
+        }
+        tempDate.setDate(tempDate.getDate() + 1);
+    }
+    // Cap ideal hours at 500h
+    idealHoursToDate = Math.min(MASTER_TARGET_HOURS, idealHoursToDate);
+    const currentStatusDelta = totalActualHours - idealHoursToDate;
+
+    // 2. Count Work Days Remaining for Pace calculation
     let workDaysUntilDeadline = 0;
     let d = new Date(today);
     while (d < TARGET_DEADLINE) {
@@ -103,7 +117,7 @@ function calculateForecast(logs = dailyRecords, overridePace = null) {
     }
     const requiredRate = workDaysUntilDeadline > 0 ? (remainingHours / workDaysUntilDeadline) : 0;
 
-    // Determine pace: use override or last 7 days avg
+    // 3. Determine Projection Pace
     let pace;
     if (overridePace !== null) {
         pace = parseFloat(overridePace);
@@ -115,21 +129,21 @@ function calculateForecast(logs = dailyRecords, overridePace = null) {
         pace = Math.max(0.1, recentAvg);
     }
     
-    // Project completion date based on pace, skipping Sundays
-    let projHoursAccum = 0;
+    // 4. Project completion date based on pace, skipping Sundays
+    let projHoursAccum = totalActualHours;
     let projDate = new Date(today);
     if (remainingHours > 0) {
-        while (projHoursAccum < remainingHours) {
+        while (projHoursAccum < MASTER_TARGET_HOURS) {
             projDate.setDate(projDate.getDate() + 1);
             if (projDate.getDay() !== 0) {
                 projHoursAccum += pace;
             }
-            // Safety break 1 year
             if (projDate.getFullYear() > today.getFullYear() + 1) break;
         }
     }
 
-    const isAhead = (remainingHours <= 0) || (projDate <= TARGET_DEADLINE);
+    // Ahead means actual hours are >= what the 8h/day baseline says we should have
+    const isAhead = totalActualHours >= idealHoursToDate;
 
     return {
         remainingHours,
@@ -139,6 +153,8 @@ function calculateForecast(logs = dailyRecords, overridePace = null) {
         recentAvg: pace,
         projectedDate: projDate,
         totalActualHours,
+        idealHoursToDate,
+        currentStatusDelta,
         isAhead
     };
 }

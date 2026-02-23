@@ -55,9 +55,9 @@ function renderDailyGraph(records = dailyRecords) {
         if (record) cell.style.cursor = "pointer";
         
         let level = 0;
-        if (recordHours >= 10) level = 3;
-        else if (recordHours >= 8) level = 2;
-        else if (recordHours > 0) level = 1;
+        if (recordHours >= 9) level = 3;
+        else if (recordHours >= 5) level = 2;
+        else if (recordHours > 3) level = 1;
 
         cell.classList.add(`cell-${['empty', 'low', 'mid', 'high'][level]}`);
         
@@ -134,8 +134,8 @@ function renderWeeklyGraph(records = dailyRecords) {
             cell.className = "day-cell";
             
             let level = 0;
-            if (hours >= 50) level = 3;
-            else if (hours >= 40) level = 2;
+            if (hours >= 35) level = 3;
+            else if (hours >= 20) level = 2;
             else if (hours > 0) level = 1;
             
             cell.classList.add(`cell-${['empty', 'low', 'mid', 'high'][level]}`);

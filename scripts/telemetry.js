@@ -178,6 +178,14 @@ function updateTargetPace(val) {
     }
 }
 
+function resetPaceSlider() {
+    const slider = document.getElementById("paceSlider");
+    if (slider) {
+        slider.value = 8.0;
+        updateTargetPace(8.0);
+    }
+}
+
 // --- MAIN RENDER LOOP ---
 
 function renderTelemetry(logs, selectedWeek = "all") {
@@ -188,26 +196,28 @@ function renderTelemetry(logs, selectedWeek = "all") {
     if (!logs) logs = [];
 
     const f = calculateForecast(allLogs);
-    const deficit = f.remainingHours > 0 ? (f.daysRemaining * 8 - f.remainingHours) : 0; // Simplified deficit check
 
-    safeUpdate("remainingHoursText", `${Math.round(f.remainingHours)} hrs remaining`);
+    safeUpdate("totalRenderedText", `${Math.round(f.totalActualHours)}h`);
+    safeUpdate("remainingHoursText", `${Math.round(f.remainingHours)}h`);
     const defEl = document.getElementById("timeDeficitText");
     if (defEl) {
-        if (f.remainingHours > 0 && f.requiredRate > 8) {
-            defEl.innerHTML = `Deficit: <strong>Behind Schedule</strong>`;
-            defEl.style.color = COLORS.accent; 
-        } else if (f.isAhead) {
-            defEl.innerHTML = `Status: <strong>Ahead / On Track</strong>`;
-            defEl.style.color = COLORS.good; 
+        const d = f.currentStatusDelta;
+        const absD = Math.abs(d).toFixed(1);
+        if (d > 0) {
+            defEl.innerHTML = `Ahead (+${absD}h)`;
+            defEl.style.color = COLORS.good;
+        } else if (d < 0) {
+            defEl.innerHTML = `Behind (-${absD}h)`;
+            defEl.style.color = COLORS.accent;
         } else {
-            defEl.innerHTML = `Status: <strong>Steady Progress</strong>`;
+            defEl.innerHTML = `On Track`;
             defEl.style.color = COLORS.text;
         }
     }
 
-    safeUpdate("completionDateText", `Projected: ${f.projectedDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}`);
+    safeUpdate("completionDateText", f.projectedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
     safeUpdate("remHoursPace", `${Math.round(f.remainingHours)}h`);
-    safeUpdate("remDaysPace", `${f.workDaysRemaining} days`);
+    safeUpdate("remDaysPace", `${f.workDaysRemaining}`);
     safeUpdate("reqPaceValue", `${Math.ceil(f.requiredRate)}h/day`);
     safeUpdate("last7DayPace", `${Math.round(allLogs.slice(-7).reduce((s,r)=>s+r.hours,0)/Math.max(1, Math.min(7, allLogs.length)))}h/day`);
 
