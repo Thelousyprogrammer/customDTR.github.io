@@ -188,7 +188,7 @@ button:hover {
 .card h1 {
   margin: 0;
   font-size: 1.6rem;
-  font-family: var(--font-digital);
+  font-family: var(--font-heading);
   text-transform: uppercase;
   letter-spacing: 2px;
   text-shadow: var(--led-glow);
@@ -199,7 +199,7 @@ button:hover {
   margin-top: 5px;
   font-size: 0.9rem;
   opacity: 0.8;
-  font-family: var(--font-digital);
+  font-family: var(--font-body);
   letter-spacing: 1px;
 }
 
@@ -299,6 +299,16 @@ button:hover {
   color: var(--text);       /* Use theme text */
   border: 1px solid var(--accent);
   box-shadow: 0 0 35px rgba(0, 0, 0, 0.5);
+}
+
+/* PDF Preview Modal — wider, taller to show full A4 page */
+.pdf-preview-modal-content {
+  width: 90vw;
+  max-width: 960px;
+  max-height: 92vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-content h2,
@@ -438,9 +448,27 @@ button:hover {
 }
 .export-card select {
   min-width: 100px;
-  max-width: 120px;
+  max-width: 140px;
   padding: 6px 10px;
   font-size: 13px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23aaa'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+
+.export-card select option {
+  background: var(--panel);
+  color: var(--text);
 }
 .export-week-range {
   font-size: 11px;

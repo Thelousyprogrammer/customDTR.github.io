@@ -8,7 +8,7 @@ function renderTrajectoryChart(logs, customPace = null) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     
-    // Create GADIENTS
+    // Create GRADIENTS
     const gradAccent = ctx.createLinearGradient(0, 0, 0, 400);
     gradAccent.addColorStop(0, COLORS.accent + '66'); // 40% opacity
     gradAccent.addColorStop(1, COLORS.fill);
@@ -24,7 +24,8 @@ function renderTrajectoryChart(logs, customPace = null) {
     const start = new Date(OJT_START);
     const end = new Date(TARGET_DEADLINE);
     const totalWorkDays = countWorkDays(start, end);
-    const goalPacePerWorkday = totalWorkDays > 0 ? Math.ceil(MASTER_TARGET_HOURS / totalWorkDays) : 0;
+    // Standard benchmark is DAILY_TARGET_HOURS (8h) per work day
+    const goalPacePerWorkday = DAILY_TARGET_HOURS; 
     
     const logMap = {};
     sortedLogs.forEach(l => logMap[l.date] = l.hours);
@@ -43,7 +44,7 @@ function renderTrajectoryChart(logs, customPace = null) {
 
     for(let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         const dateStr = d.toISOString().split('T')[0];
-        labels.push(dateStr);
+        labels.push(new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
         
         const dayHours = logMap[dateStr];
         if (dayHours !== undefined) {
@@ -65,8 +66,11 @@ function renderTrajectoryChart(logs, customPace = null) {
         }
         
         const day = d.getDay();
+        // Standard OJT pace: 8h per working day
         if (day !== 0) idealSum += goalPacePerWorkday;
-        idealCumulative.push(idealSum);
+        
+        // Cap ideal line at 500h Milestone
+        idealCumulative.push(Math.min(MASTER_TARGET_HOURS, idealSum));
     }
 
     charts.trajectory = new Chart(ctx, {
@@ -75,7 +79,7 @@ function renderTrajectoryChart(logs, customPace = null) {
             labels: labels,
             datasets: [
                 { 
-                    label: 'Actual', 
+                    label: 'Actual Progress', 
                     data: actualCumulative, 
                     borderColor: COLORS.accent, 
                     backgroundColor: gradAccent, 
@@ -95,18 +99,10 @@ function renderTrajectoryChart(logs, customPace = null) {
                     spanGaps: true
                 },
                 { 
-                    label: 'Goal Pace (to 500h)', 
+                    label: `Ideal Target (Standard ${DAILY_TARGET_HOURS}h Daily)`, 
                     data: idealCumulative, 
                     borderColor: 'rgba(255,255,255,0.2)', 
                     borderDash: [5, 5], 
-                    pointRadius: 0 
-                },
-                { 
-                    label: '500h Goal', 
-                    data: labels.map(() => 500), 
-                    borderColor: COLORS.excellent, 
-                    borderWidth: 1, 
-                    borderDash: [2, 2], 
                     pointRadius: 0 
                 }
             ]
@@ -134,7 +130,11 @@ function renderTrajectoryChart(logs, customPace = null) {
                 }
             },
             scales: { 
-                y: { grid: { color: COLORS.grid } }, 
+                y: { 
+                    beginAtZero: true,
+                    max: Math.ceil(Math.max(MASTER_TARGET_HOURS, currentSum, projSum) / 50) * 50 + 50,
+                    grid: { color: COLORS.grid } 
+                }, 
                 x: { ticks: { autoSkip: true, maxTicksLimit: 12 }, grid: { display: false } } 
             }
         }
@@ -238,7 +238,6 @@ function renderCandlestickChart(logs) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    // Group logs by week and calculate OHLC Delta
     const weeklyOHLC = {};
     const sorted = [...logs].sort((a,b) => new Date(a.date) - new Date(b.date));
 
@@ -249,7 +248,6 @@ function renderCandlestickChart(logs) {
         if (!weeklyOHLC[w]) {
             weeklyOHLC[w] = { week: `Week ${w}`, open: delta, close: delta, high: delta, low: delta };
         } else {
-            // Update the existing week record
             weeklyOHLC[w].close = delta; 
             weeklyOHLC[w].high = Math.max(weeklyOHLC[w].high, delta);
             weeklyOHLC[w].low = Math.min(weeklyOHLC[w].low, delta);
@@ -257,9 +255,8 @@ function renderCandlestickChart(logs) {
     });
 
     const weeks = Object.values(weeklyOHLC).map(w => {
-        // Ensure the body is visible even if open == close (Doji)
         if (Math.abs(w.open - w.close) < 0.05) {
-            w.close = w.open + 0.05; // Force a thin line
+            w.close = w.open + 0.05;
         }
         return w;
     });
@@ -272,15 +269,14 @@ function renderCandlestickChart(logs) {
                 {
                     label: 'Wick',
                     data: weeks.map(w => [w.low, w.high]),
-                    backgroundColor: weeks.map(w => w.close >= w.open ? COLORS.good + '88' : COLORS.accent + '88'), // Matches body color with transparency
+                    backgroundColor: weeks.map(w => w.close >= w.open ? COLORS.good + '88' : COLORS.accent + '88'),
                     borderColor: 'transparent',
-                    barPercentage: 0.1, // Thicker wick for visibility
+                    barPercentage: 0.1,
                     grouped: false,
                     order: 2
                 },
                 {
                     label: 'Body',
-                    // Crucial: Chart.js bar data [v0, v1] should be [min, max] for reliable rendering
                     data: weeks.map(w => [Math.min(w.open, w.close), Math.max(w.open, w.close)]),
                     backgroundColor: weeks.map(w => w.close >= w.open ? COLORS.good : COLORS.accent),
                     borderColor: weeks.map(w => w.close >= w.open ? COLORS.good : COLORS.accent),
@@ -353,7 +349,6 @@ function renderContextualCharts(logs, selectedWeek) {
             }
         });
     }
-
     renderCandlestickChart(allLogs);
 }
 
@@ -368,8 +363,8 @@ function renderRadarChart(logs) {
 
     logs.forEach(l => {
         const d = new Date(l.date).getDay();
-        if (d === 0) return; // Skip Sunday
-        const idx = d - 1; // Mon=0
+        if (d === 0) return;
+        const idx = d - 1;
         dayAverages[idx] += l.hours;
         dayCounts[idx]++;
     });
@@ -454,4 +449,3 @@ function renderHourDistChart(logs) {
         }
     });
 }
-

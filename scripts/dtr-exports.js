@@ -1,7 +1,13 @@
 /**
  * DTR EXPORTS MODULE
- * Handles PDF generation and export-related UI logic
+ * Handles PDF generation, preview modal, and export-related UI logic
  */
+
+// ─── Preview Modal State ───────────────────────────────────────────────────
+let _pendingPdfDoc = null;
+let _pendingPdfFileName = null;
+
+// ─── Export Week Selector Helpers ─────────────────────────────────────────
 
 function updateExportWeekOptions() {
     const select = document.getElementById("exportWeekSelect");
@@ -31,14 +37,13 @@ function updateExportWeekRangeLabel() {
     const label = document.getElementById("exportWeekRangeLabel");
     if (!select || !label) return;
     const val = select.value;
-    if (val === "all") {
-        label.textContent = "";
-        return;
-    }
+    if (val === "all") { label.textContent = ""; return; }
     const range = getWeekDateRange(parseInt(val, 10));
     const short = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" });
     label.textContent = `${short(range.startDate)} – ${short(range.endDate)}`;
 }
+
+// ─── Weekly Data Aggregator ────────────────────────────────────────────────
 
 function getWeeklyDTR(filterWeek = "all") {
     const weeks = {};
@@ -52,10 +57,10 @@ function getWeeklyDTR(filterWeek = "all") {
                 accomplishments: [], tools: new Set()
             };
         }
-        weeks[week].totalHours += r.hours;
-        weeks[week].personalHours += parseFloat(r.personalHours) || 0;
-        weeks[week].sleepHours += parseFloat(r.sleepHours) || 0;
-        weeks[week].recoveryHours += parseFloat(r.recoveryHours) || 0;
+        weeks[week].totalHours     += r.hours;
+        weeks[week].personalHours  += parseFloat(r.personalHours) || 0;
+        weeks[week].sleepHours     += parseFloat(r.sleepHours)    || 0;
+        weeks[week].recoveryHours  += parseFloat(r.recoveryHours) || 0;
         if (Array.isArray(r.accomplishments)) {
             r.accomplishments.forEach(a => weeks[week].accomplishments.push({ date: r.date, text: a }));
         }
@@ -66,41 +71,127 @@ function getWeeklyDTR(filterWeek = "all") {
     return Object.values(weeks).map(w => ({ ...w, tools: [...w.tools] }));
 }
 
+// ─── PDF Preview Modal ─────────────────────────────────────────────────────
+
+function showPdfPreview(doc, fileName, title) {
+    _pendingPdfDoc = doc;
+    _pendingPdfFileName = fileName;
+
+    const blobUrl = doc.output('bloburl');
+    const frame   = document.getElementById('pdfPreviewFrame');
+    const modal   = document.getElementById('pdfPreviewModal');
+    const titleEl = document.getElementById('pdfPreviewTitle');
+
+    if (titleEl) titleEl.textContent = title;
+    if (frame)   frame.src           = blobUrl;
+    if (modal)   modal.style.display = 'flex';
+}
+
+function closePdfPreview() {
+    const modal = document.getElementById('pdfPreviewModal');
+    const frame = document.getElementById('pdfPreviewFrame');
+    if (frame) frame.src           = '';
+    if (modal) modal.style.display = 'none';
+    _pendingPdfDoc      = null;
+    _pendingPdfFileName = null;
+}
+
+function triggerPdfDownload() {
+    if (_pendingPdfDoc && _pendingPdfFileName) {
+        _pendingPdfDoc.save(_pendingPdfFileName);
+        closePdfPreview();
+    }
+}
+
+// ─── Export All (Daily DTR) ────────────────────────────────────────────────
+
 function exportPDF() {
+    if (!dailyRecords.length) return alert("No records to export.");
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF("p", "mm", "a4");
     let y = 15;
 
+    // Title
     doc.setFontSize(16);
-    doc.setTextColor(255, 30, 0); 
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(200, 20, 0);
     doc.text("Daily DTR Report", 105, y, { align: "center" });
-    y += 10;
-    doc.setTextColor(0, 0, 0);
+    y += 6;
+
+    // Sub-label
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}  •  Total Records: ${dailyRecords.length}`, 105, y, { align: "center" });
+    y += 6;
+
+    // Rule
+    doc.setDrawColor(200, 20, 0);
+    doc.setLineWidth(0.5);
+    doc.line(10, y, 200, y);
+    y += 8;
 
     dailyRecords.forEach(r => {
+        // Date / Hours header (Dark Red)
         doc.setFontSize(11);
         doc.setFont(undefined, 'bold');
-        doc.text(`Date: ${r.date} | Hours: ${r.hours} | Delta: ${r.delta >= 0 ? "+" : ""}${r.delta.toFixed(2)}`, 10, y); 
+        doc.setTextColor(180, 15, 0);
+        doc.text(`${r.date}`, 10, y);
+
+        // Hours value (Navy Blue)
+        doc.setTextColor(30, 50, 140);
+        doc.text(`${r.hours}h  (Δ ${r.delta >= 0 ? "+" : ""}${r.delta.toFixed(2)})`, 60, y);
         y += 6;
-        doc.setFont(undefined, 'normal');
-        doc.setFontSize(10);
+
+        // Reflection label + text (Dark Gray / Near Black)
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(60, 60, 60);
         doc.text("Reflection:", 10, y); y += 5;
-        const lines = doc.splitTextToSize(r.reflection || "-", 180);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(25, 25, 25);
+        const lines = doc.splitTextToSize(r.reflection || "—", 178);
         lines.forEach(line => { doc.text(line, 12, y); y += 5; });
 
+        // Accomplishments (Dark Gray label, Near Black bullets)
         if (Array.isArray(r.accomplishments) && r.accomplishments.length) {
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(60, 60, 60);
             doc.text("Accomplishments:", 10, y); y += 5;
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(25, 25, 25);
             r.accomplishments.forEach(a => { doc.text("• " + a, 14, y); y += 5; });
         }
-        doc.setFontSize(9);
-        doc.setTextColor(100, 100, 100);
-        const tel = `L2: P.Hours: ${r.personalHours} | Sleep: ${r.sleepHours} | Rec: ${r.recoveryHours} | Align: ${r.identityScore}`;
-        doc.text(tel, 10, y); y += 10;
-        doc.setTextColor(0,0,0);
+
+        // Tools (Teal italic)
+        if (Array.isArray(r.tools) && r.tools.length) {
+            doc.setFontSize(8);
+            doc.setFont(undefined, 'italic');
+            doc.setTextColor(30, 110, 110);
+            doc.text("Tools: " + r.tools.join(", "), 10, y); y += 5;
+            doc.setFont(undefined, 'normal');
+        }
+
+        // L2 Telemetry (Slate gray)
+        doc.setFontSize(8);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(90, 100, 115);
+        const tel = `L2 — Personal: ${r.personalHours}h  |  Sleep: ${r.sleepHours}h  |  Recovery: ${r.recoveryHours}h  |  Identity: ${r.identityScore || "—"}`;
+        doc.text(tel, 10, y); y += 8;
+
+        // Thin row separator
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.2);
+        doc.line(10, y, 200, y);
+        y += 5;
+
         if (y > 260) { doc.addPage(); y = 15; }
     });
-    doc.save(getTodayFileName("Daily_DTR_Report", "pdf"));
+
+    showPdfPreview(doc, getTodayFileName("Daily_DTR_Report", "pdf"), "Daily DTR Report – All Records");
 }
+
+// ─── Export Weekly ─────────────────────────────────────────────────────────
 
 function exportWeeklyPDF() {
     if (!dailyRecords.length) return alert("No records to export.");
@@ -109,20 +200,105 @@ function exportWeeklyPDF() {
     let y = 15;
 
     const filterWeek = document.getElementById("exportWeekSelect").value;
-    doc.setFontSize(16); doc.setTextColor(255, 30, 0);
-    doc.text("Weekly DTR Report", 105, y, { align: "center" }); y += 20;
+    const weekLabel  = filterWeek === "all" ? "All Weeks" : `Week ${filterWeek}`;
+
+    // ── Report Title (Red)
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(200, 20, 0);
+    doc.text("Weekly DTR Report", 105, y, { align: "center" });
+    y += 6;
+
+    // ── Sub-label (Mid Gray)
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Filter: ${weekLabel}  •  Generated: ${new Date().toLocaleDateString()}`, 105, y, { align: "center" });
+    y += 8;
+
+    // ── Header rule (Red)
+    doc.setDrawColor(200, 20, 0);
+    doc.setLineWidth(0.5);
+    doc.line(10, y, 200, y);
+    y += 8;
 
     const weeks = getWeeklyDTR(filterWeek);
-    weeks.forEach(w => {
-        doc.setFontSize(12); doc.setFont(undefined, 'bold');
-        doc.text(`Week ${w.week} Summary`, 10, y); y += 6;
-        doc.setFont(undefined, 'normal'); doc.setFontSize(11);
-        doc.text(`Total OJT Hours: ${w.totalHours.toFixed(1)}`, 10, y); y += 6;
-        w.accomplishments.forEach(a => {
-            doc.splitTextToSize(`• [${a.date}] ${a.text}`, 180).forEach(line => { doc.text(line, 14, y); y += 5; });
-        });
-        y += 10;
+    weeks.forEach((w, idx) => {
+
+        // ── Week Header (Dark Red)
+        doc.setFontSize(13);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(180, 15, 0);
+        doc.text(`Week ${w.week} Summary`, 10, y);
+        y += 7;
+
+        // ── Total Hours label + value (Navy Blue)
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(30, 50, 140);
+        doc.text("Total OJT Hours:", 10, y);
+        doc.setFont(undefined, 'bold');
+        doc.text(`${w.totalHours.toFixed(1)} hrs`, 46, y);
+        y += 7;
+
+        // ── L2 Telemetry row (Muted Slate)
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(90, 100, 115);
+        const l2 = `Personal: ${w.personalHours.toFixed(1)}h  |  Sleep: ${w.sleepHours.toFixed(1)}h  |  Recovery: ${w.recoveryHours.toFixed(1)}h`;
+        doc.text(l2, 10, y);
+        y += 6;
+
+        // ── Tools (Dark Teal, Italic)
+        if (w.tools.length) {
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'italic');
+            doc.setTextColor(30, 110, 110);
+            const toolLines = doc.splitTextToSize(`Tools Used: ${w.tools.join(", ")}`, 185);
+            toolLines.forEach(line => { doc.text(line, 10, y); y += 5; });
+            doc.setFont(undefined, 'normal');
+            y += 1;
+        }
+
+        // ── Accomplishments (Dark Gray label, Near-Black bullets with muted date)
+        if (w.accomplishments.length) {
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(60, 60, 60);
+            doc.text("Accomplishments:", 10, y);
+            y += 5;
+
+            w.accomplishments.forEach(a => {
+                // Date stamp (Light Gray)
+                doc.setFontSize(8);
+                doc.setFont(undefined, 'normal');
+                doc.setTextColor(150, 150, 150);
+                doc.text(`[${a.date}]`, 14, y);
+
+                // Accomplishment text (Near Black)
+                doc.setFontSize(9);
+                doc.setTextColor(25, 25, 25);
+                const textLines = doc.splitTextToSize(a.text, 158);
+                textLines.forEach((line, li) => {
+                    doc.text((li === 0 ? "• " : "  ") + line, li === 0 ? 34 : 36, y);
+                    y += 5;
+                });
+
+                if (y > 260) { doc.addPage(); y = 15; }
+            });
+        }
+
+        // ── Week separator (Light Gray rule between weeks)
+        y += 4;
+        if (idx < weeks.length - 1) {
+            doc.setDrawColor(200, 200, 200);
+            doc.setLineWidth(0.3);
+            doc.line(10, y, 200, y);
+            y += 8;
+        }
+
         if (y > 260) { doc.addPage(); y = 15; }
     });
-    doc.save(getTodayFileName("WeeklyReport", "pdf"));
+
+    showPdfPreview(doc, getTodayFileName("WeeklyReport", "pdf"), `Weekly DTR Report – ${weekLabel}`);
 }

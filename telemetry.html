@@ -66,9 +66,12 @@
     <div class="telemetry-stats-grid">
       <div class="card stat-card" id="forecastCard">
         <h3>OJT Forecast</h3>
-        <p id="remainingHoursText" class="stat-value stat-accent">0 hrs remaining</p>
-        <p id="timeDeficitText" class="stat-sub" style="font-size: 0.85rem; margin-top: 4px; opacity: 0.9;">Deficit: ...</p>
-        <p id="completionDateText" class="stat-sub">Projected: TBD</p>
+        <div class="stat-rows">
+          <div class="stat-row"><span>Total Rendered</span><strong id="totalRenderedText">0h</strong></div>
+          <div class="stat-row"><span>Remaining</span><strong id="remainingHoursText" class="stat-accent">0h</strong></div>
+          <div class="stat-row"><span>Status</span><span id="timeDeficitText">...</span></div>
+          <div class="stat-row"><span>Projected</span><strong id="completionDateText">TBD</strong></div>
+        </div>
         <small id="avgPaceNote" class="stat-note">Based on current pace</small>
       </div>
       <div class="card stat-card" id="paceCalculatorCard">
@@ -76,11 +79,16 @@
         <div class="stat-rows">
           <div class="stat-row"><span>Remaining</span><span id="remHoursPace" class="stat-accent">0h</span></div>
           <div class="stat-row"><span>Workdays left</span><span id="remDaysPace">0</span></div>
-          <div class="stat-row"><span>Need</span><span id="reqPaceValue" class="stat-excellent">0.0h/day</span></div>
           <div class="stat-row"><span>Last 7d avg</span><span id="last7DayPace">0.0h/day</span></div>
         </div>
         <div class="pace-slider-wrap">
-          <label><span>Projected Target</span><span><span id="paceSliderVal">8.0</span>h/day</span></label>
+          <label style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Projected Target</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span><span id="paceSliderVal">8.0</span>h/day</span>
+              <button class="telemetry-btn" id="resetPaceBtn" onclick="resetPaceSlider()" style="padding: 2px 6px; font-size: 10px; height: auto;">Reset</button>
+            </div>
+          </label>
           <input type="range" id="paceSlider" min="1" max="16" step="0.5" value="8" oninput="updateTargetPace(this.value)">
         </div>
         <p id="paceStatusMsg" class="stat-msg">Calculating…</p>

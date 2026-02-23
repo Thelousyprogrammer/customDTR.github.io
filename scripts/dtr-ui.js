@@ -91,11 +91,19 @@ function showSummary(record) {
     const identityLabels = { 0:"Not Set", 1:"1 - Misaligned", 2:"2 - Improving", 3:"3 - On Track", 4:"4 - High Growth", 5:"5 - Fully Aligned"};
     const commuteEff = record.commuteTotal > 0 ? ((record.commuteProductive / record.commuteTotal) * 100).toFixed(1) + "%" : "N/A";
 
+    // OJT Forecast logic Alignment (SINGLE SOURCE OF TRUTH)
+    const f = calculateForecast(dailyRecords);
+    const absDelta = Math.abs(f.currentStatusDelta).toFixed(1);
+    const statusText = f.currentStatusDelta > 0 ? `Ahead (+${absDelta}h)` : (f.currentStatusDelta < 0 ? `Behind (-${absDelta}h)` : "On Track");
+
     s.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap: 20px;">
             <div style="flex: 1;">
                 <h2>Session Delta Summary</h2>
-                <p><strong>Date:</strong> ${record.date}</p>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <p style="margin:0;"><strong>Date:</strong> ${record.date}</p>
+                    <span style="font-size:0.8em; color:${f.isAhead ? DTR_COLORS.good : DTR_COLORS.warning}; font-family:var(--font-body); text-transform:uppercase; font-weight:bold;">${statusText}</span>
+                </div>
                 <p><strong>Hours Worked:</strong> ${record.hours}</p>
                 <p><strong>Delta:</strong> <span style="color:${deltaColor}; font-weight:bold;">${record.delta >= 0 ? "+" : ""}${record.delta.toFixed(2)} hours</span></p>
                 <p><strong>Trend:</strong> <span style="color:${trendColor}; font-weight:bold;">${trendLabel}</span></p>
@@ -109,19 +117,20 @@ function showSummary(record) {
         <p><strong>Reflection:</strong> ${record.reflection}</p>
         <p><strong>Tools:</strong> ${Array.isArray(record.tools) ? record.tools.join(", ") : record.tools}</p>
         <div style="margin-top:20px; padding-top:15px; border-top: 1px dotted var(--border); display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:0.9em;">
-            <div><strong>Personal:</strong> ${record.personalHours}h</div>
-            <div><strong>Sleep:</strong> ${record.sleepHours}h</div>
-            <div><strong>Recovery:</strong> ${record.recoveryHours}h</div>
+            <div><strong>Personal:</strong> ${record.personalHours || 0}h</div>
+            <div><strong>Sleep:</strong> ${record.sleepHours || 0}h</div>
+            <div><strong>Recovery:</strong> ${record.recoveryHours || 0}h</div>
             <div><strong>Identity:</strong> ${identityLabels[record.identityScore] || "Not Set"}</div>
             <div style="grid-column: span 2;"><strong>Commute Eff:</strong> ${commuteEff}</div>
         </div>
         
-        <div style="margin-top:15px; padding:10px; background:rgba(255,255,255,0.03); border-radius:8px; border-left:4px solid ${calculateForecast().isAhead ? DTR_COLORS.good : DTR_COLORS.warning};">
-            <h4 style="margin:0 0 8px 0; font-size:0.9em; text-transform:uppercase; color:var(--accent);">OJT Forecast</h4>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; font-size:0.85em;">
-                <div>Rem. Hours: <strong>${Math.round(calculateForecast().remainingHours)}h</strong></div>
-                <div>Need: <strong>${Math.ceil(calculateForecast().requiredRate)}h/day</strong></div>
-                <div style="grid-column: span 2;">Projected: <strong>${calculateForecast().projectedDate.toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'})}</strong></div>
+        <div style="margin-top:15px; padding:10px; background:rgba(255,255,255,0.03); border-radius:8px; border-left:4px solid ${f.isAhead ? DTR_COLORS.good : DTR_COLORS.warning};">
+            <h4 style="margin:0 0 8px 0; font-size:0.9em; text-transform:uppercase; color:var(--accent); font-family:var(--font-body);">OJT Forecast</h4>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; font-size:0.85em; font-family:var(--font-body);">
+                <div>Total Rendered: <strong>${Math.round(f.totalActualHours)}h</strong></div>
+                <div>Rem. Hours: <strong>${Math.round(f.remainingHours)}h</strong></div>
+                <div>Need Pace: <strong>${Math.ceil(f.requiredRate)}h/day</strong></div>
+                <div>Projected: <strong>${f.projectedDate.toLocaleDateString(undefined, {month:'short', day:'numeric'})}</strong></div>
             </div>
         </div>
     `;
@@ -191,9 +200,12 @@ function loadReflectionViewer() {
         const div = document.createElement("div");
         div.className = "reflection-item";
 
-        // L2 Telemetry Formatting for Viewer
         const identityLabels = { 0:"Not Set", 1:"1 - Misaligned", 2:"2 - Improving", 3:"3 - On Track", 4:"4 - High Growth", 5:"5 - Fully Aligned"};
         const commuteEff = r.commuteTotal > 0 ? ((r.commuteProductive / r.commuteTotal) * 100).toFixed(1) + "%" : "N/A";
+
+        const toolsHTML = (Array.isArray(r.tools) && r.tools.length)
+            ? r.tools.map(t => `<span style="display:inline-block; padding:2px 8px; margin:2px 3px 2px 0; border:1px solid var(--accent); border-radius:12px; font-size:0.78em; color:var(--accent); white-space:nowrap;">${t}</span>`).join("")
+            : `<span style="opacity:0.5;">N/A</span>`;
 
         div.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -210,6 +222,7 @@ function loadReflectionViewer() {
                     <div><strong>Recovery:</strong> ${r.recoveryHours || 0}h</div>
                     <div><strong>Identity:</strong> ${identityLabels[r.identityScore] || "Not Set"}</div>
                     <div style="grid-column: span 2;"><strong>Commute Eff:</strong> ${commuteEff}</div>
+                    <div style="grid-column: span 2; margin-top: 4px;"><strong>Tools Used:</strong><br>${toolsHTML}</div>
                 </div>
             </div>
             ${reflectionImagesHTML}
@@ -218,8 +231,6 @@ function loadReflectionViewer() {
         viewer.appendChild(div);
     });
 }
-
-// --- MODAL HANDLING ---
 
 function closeEditModal() {
     const modal = document.getElementById("editModal");
@@ -276,8 +287,8 @@ function finalizeSave(date, hours, reflection, accomplishments, tools, images, l
     loadReflectionViewer();
     const newIndex = dailyRecords.findIndex(r => r.date === date);
     showSummary(dailyRecords[newIndex]);
-    renderDailyGraph();
-    renderWeeklyGraph();
+    if (typeof renderDailyGraph === 'function') renderDailyGraph();
+    if (typeof renderWeeklyGraph === 'function') renderWeeklyGraph();
     alert("Record updated successfully!");
 }
 
@@ -299,7 +310,6 @@ document.addEventListener("click", e => {
     document.getElementById("editCommuteTotal").value = r.commuteTotal || 0;
     document.getElementById("editCommuteProductive").value = r.commuteProductive || 0;
 
-    // Reset image replacement input
     const imgInput = document.getElementById("editImages");
     if (imgInput) imgInput.value = "";
     const imgPreview = document.getElementById("editImagePreview");
@@ -328,7 +338,6 @@ document.addEventListener("click", e => {
     document.getElementById("editModal").style.display = "flex";
 });
 
-// Listener for edit image preview
 const editImgInput = document.getElementById("editImages");
 if (editImgInput) {
     editImgInput.addEventListener("change", function () {

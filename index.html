@@ -198,6 +198,8 @@
         </select>
       <span id="exportWeekRangeLabel" class="export-week-range" aria-live="polite"></span>
       <button onclick="exportWeeklyPDF()">Export Week</button>
+      <span class="export-divider">|</span>
+      <button onclick="optimizeStorage()" title="Retroactively compress all images to free up space" style="background:transparent; border:1px solid var(--accent); color:var(--accent);">Optimize DB</button>
     </div>
   </div>
 </div>
@@ -277,6 +279,21 @@
     <div class="modal-actions" style="border-top: 1px solid var(--border); padding-top: 15px;">
       <button onclick="closeEditModal()" style="background: transparent; color: var(--text); border: 1px solid var(--border);">Cancel</button>
       <button type="button" onclick="saveEditModal()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF Preview Modal -->
+<div id="pdfPreviewModal" class="modal" style="display:none;">
+  <div class="modal-content pdf-preview-modal-content">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:12px; border-bottom:2px solid var(--accent); margin-bottom:12px;">
+      <h3 id="pdfPreviewTitle" style="margin:0; font-family:var(--font-heading); color:var(--accent); text-transform:uppercase; letter-spacing:1px; font-size:1rem;">PDF Preview</h3>
+      <button onclick="closePdfPreview()" style="background:transparent; color:var(--text); border:1px solid var(--border); padding:4px 12px; font-size:12px; border-radius:4px; cursor:pointer;">✕ Close</button>
+    </div>
+    <iframe id="pdfPreviewFrame" style="width:100%; height:65vh; border:none; border-radius:6px; background:#fff;"></iframe>
+    <div class="modal-actions" style="border-top:1px solid var(--border); padding-top:14px; margin-top:12px;">
+      <button onclick="closePdfPreview()" style="background:transparent; color:var(--text); border:1px solid var(--border);">Cancel</button>
+      <button id="pdfDownloadBtn" onclick="triggerPdfDownload()">⬇ Download PDF</button>
     </div>
   </div>
 </div>
