@@ -6,6 +6,7 @@
 window.addEventListener("DOMContentLoaded", () => {
     // 1. Initial Data Sync
     dailyRecords = JSON.parse(localStorage.getItem("dtr")) || [];
+    if (typeof migrateImagesToIndexedDB === "function") migrateImagesToIndexedDB();
 
     // 2. Initial Theme Sync
     const savedTheme = localStorage.getItem('user-theme') || 'f1';
@@ -30,7 +31,12 @@ window.addEventListener("DOMContentLoaded", () => {
         updateExportWeekRangeLabel();
     }
 
-    // 5. Live Sync: Real-time Graph Updates
+    // 5. Storage Visualizer
+    if (typeof updateStorageVisualizer === 'function') {
+        updateStorageVisualizer();
+    }
+
+    // 6. Live Sync: Real-time Graph Updates
     const syncGraphsRealTime = (dateId, hoursId) => {
         const dateVal = document.getElementById(dateId).value;
         const hoursVal = parseFloat(document.getElementById(hoursId).value);

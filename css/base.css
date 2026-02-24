@@ -479,3 +479,45 @@ button:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Storage Capacity Visualizer */
+.storage-card .storage-visualizer {
+  margin-top: 10px;
+}
+.storage-info {
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+.storage-sep {
+  opacity: 0.6;
+  margin: 0 4px;
+}
+.storage-bar-wrap {
+  height: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.storage-bar {
+  height: 100%;
+  background: var(--color-good);
+  border-radius: 5px;
+  transition: width 0.3s ease, background 0.3s ease;
+  min-width: 0;
+}
+.storage-bar[aria-valuenow] {
+  /* Color by usage: green < 50%, yellow 50–80%, red 80%+ */
+}
+.storage-visualizer[data-percent="high"] .storage-bar {
+  background: var(--color-warning);
+}
+.storage-visualizer[data-percent="critical"] .storage-bar {
+  background: var(--accent);
+}
+.storage-status {
+  font-size: 12px;
+  margin: 8px 0 0 0;
+  font-weight: 600;
+}

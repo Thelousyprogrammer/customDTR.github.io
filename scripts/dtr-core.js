@@ -21,7 +21,7 @@ let editingIndex = null;
 let currentSortMode = "date-asc";
 
 class DailyRecord {
-    constructor(date, hours, reflection, accomplishments, tools, images = [], l2Data = {}) {
+    constructor(date, hours, reflection, accomplishments, tools, images = [], l2Data = {}, imageIds = []) {
         this.date = date;
         this.hours = hours;
         this.delta = hours - DAILY_TARGET_HOURS;
@@ -29,7 +29,8 @@ class DailyRecord {
         this.accomplishments = accomplishments;
         this.tools = tools;
         this.images = images;
-        
+        this.imageIds = imageIds;
+
         this.personalHours = parseFloat(l2Data.personalHours) || 0;
         this.sleepHours = parseFloat(l2Data.sleepHours) || 0;
         this.recoveryHours = parseFloat(l2Data.recoveryHours) || 0;

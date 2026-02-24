@@ -202,6 +202,35 @@
       <button onclick="optimizeStorage()" title="Retroactively compress all images to free up space" style="background:transparent; border:1px solid var(--accent); color:var(--accent);">Optimize DB</button>
     </div>
   </div>
+
+  <!-- Storage Capacity Visualizer -->
+  <div class="card storage-card">
+    <h2>Storage Capacity</h2>
+    <div id="storageVisualizer" class="storage-visualizer">
+      <div class="storage-info">
+        <span id="storageUsedText">0.00 MB</span>
+        <span class="storage-sep">/</span>
+        <span id="storageLimitText">5 MB</span>
+        <span class="storage-label"> (records)</span>
+      </div>
+      <div class="storage-bar-wrap">
+        <div id="storageBar" class="storage-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+      </div>
+      <p id="storageStatus" class="storage-status">Calculating…</p>
+      <div id="storageIdbSection" class="storage-idb-section" style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border);">
+        <div class="storage-info" style="font-size:0.9em;">
+          <span id="storageIdbUsedText">0.00 MB</span>
+          <span class="storage-sep">/</span>
+          <span id="storageIdbQuotaText">— MB</span>
+          <span class="storage-label"> Images (IndexedDB)</span>
+        </div>
+        <div class="storage-bar-wrap" style="margin-top:4px;">
+          <div id="storageIdbBar" class="storage-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="background:var(--color-neutral);"></div>
+        </div>
+        <p id="storageIdbStatus" class="storage-status" style="font-size:0.85em; margin-top:4px;">Calculating…</p>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="editModal" class="modal">
@@ -306,6 +335,7 @@
 
 <!-- Core Logic & Helpers -->
 <script src="scripts/dtr-core.js"></script>
+<script src="scripts/dtr-image-store.js"></script>
 <!-- Logic Modules -->
 <script src="scripts/dtr-storage.js"></script>
 <script src="scripts/dtr-ui.js"></script>

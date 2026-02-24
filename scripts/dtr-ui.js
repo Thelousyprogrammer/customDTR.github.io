@@ -68,14 +68,10 @@ function showSummary(record) {
         else { trendLabel = "Same as before"; trendColor = DTR_COLORS.neutral; }
     }
 
-    let imagesHTML = "";
-    if (record.images && record.images.length) {
-        imagesHTML = `
-            <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content: flex-end;">
-              ${record.images.map(src => `<img src="${src}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--border); transition: transform 0.2s;" onmouseover="this.style.transform='scale(2.5)'; this.style.zIndex='100';" onmouseout="this.style.transform='scale(1)'; this.style.zIndex='1';">`).join("")}
-            </div>
-        `;
-    }
+    const hasSummaryImages = (record.imageIds && record.imageIds.length) || (record.images && record.images.length);
+    const summaryImagesContainer = hasSummaryImages
+        ? '<div class="summary-images" style="display:flex; gap:6px; flex-wrap:wrap; justify-content: flex-end;"></div>'
+        : "";
 
     const totalHours = getTotalHours();
     let overallColor = (totalHours >= MASTER_TARGET_HOURS) ? DTR_COLORS.excellent : DTR_COLORS.good;
@@ -111,7 +107,7 @@ function showSummary(record) {
                 <p><strong>Weekly:</strong> <span style="color:${weekColor}; font-weight:bold;">${weekHours} / ${maxWeeklyHours}</span></p>
             </div>
             <div style="max-width:300px;">
-                ${imagesHTML}
+                ${summaryImagesContainer}
             </div>
         </div>
         <p><strong>Reflection:</strong> ${record.reflection}</p>
@@ -134,6 +130,24 @@ function showSummary(record) {
             </div>
         </div>
     `;
+    if (hasSummaryImages && typeof getRecordImageUrls === "function") {
+        const container = s.querySelector(".summary-images");
+        if (container) {
+            getRecordImageUrls(record).then((urls) => {
+                urls.forEach((src) => {
+                    if (!src || typeof src !== "string") return;
+                    const img = document.createElement("img");
+                    img.src = src;
+                    img.setAttribute("style", "width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--border); transition: transform 0.2s;");
+                    img.alt = "Session";
+                    img.onerror = function () { this.style.visibility = "hidden"; };
+                    img.onmouseover = function () { this.style.transform = "scale(2.5)"; this.style.zIndex = "100"; };
+                    img.onmouseout = function () { this.style.transform = "scale(1)"; this.style.zIndex = "1"; };
+                    container.appendChild(img);
+                });
+            });
+        }
+    }
 }
 
 function changeSortMode(mode) {
@@ -188,14 +202,10 @@ function loadReflectionViewer() {
         if (r.delta <= 0) deltaColor = DTR_COLORS.warning;
         else if (r.delta > GREAT_DELTA_THRESHOLD) deltaColor = DTR_COLORS.good;
 
-        let reflectionImagesHTML = "";
-        if (r.images && r.images.length) {
-            reflectionImagesHTML = `
-                <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;">
-                    ${r.images.map(src => `<img src="${src}" style="width:50px;height:50px;object-fit:cover;border-radius:4px;border:1px solid var(--border); cursor:zoom-in;" onclick="this.style.width='auto'; this.style.height='300px'; this.style.position='fixed'; this.style.top='50%'; this.style.left='50%'; this.style.transform='translate(-50%, -50%)'; this.style.zIndex='9999'; this.style.boxShadow='0 0 20px rgba(0,0,0,0.8)'; this.onclick=function(){this.style.width='50px'; this.style.height='50px'; this.style.position='static'; this.style.transform='none'; this.style.zIndex='1'; this.style.boxShadow='none'; this.onclick=null;};">`).join("")}
-                </div>
-            `;
-        }
+        const hasImages = (r.imageIds && r.imageIds.length) || (r.images && r.images.length);
+        const reflectionImagesHTML = hasImages
+            ? '<div class="reflection-images" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;"></div>'
+            : "";
 
         const div = document.createElement("div");
         div.className = "reflection-item";
@@ -228,6 +238,32 @@ function loadReflectionViewer() {
             ${reflectionImagesHTML}
             <hr>
         `;
+        if (hasImages && typeof getRecordImageUrls === "function") {
+            const imgContainer = div.querySelector(".reflection-images");
+            const thumbStyle = "width:50px;height:50px;object-fit:cover;border-radius:4px;border:1px solid var(--border); cursor:zoom-in;";
+            getRecordImageUrls(r).then((urls) => {
+                if (!imgContainer) return;
+                urls.forEach((src) => {
+                    if (!src || typeof src !== "string") return;
+                    const img = document.createElement("img");
+                    img.src = src;
+                    img.setAttribute("style", thumbStyle);
+                    img.alt = "Reflection";
+                    img.onerror = function () { this.style.visibility = "hidden"; this.title = "Image failed to load"; };
+                    img.onclick = function () {
+                        this.style.width = "auto"; this.style.height = "300px"; this.style.position = "fixed";
+                        this.style.top = "50%"; this.style.left = "50%"; this.style.transform = "translate(-50%, -50%)";
+                        this.style.zIndex = "9999"; this.style.boxShadow = "0 0 20px rgba(0,0,0,0.8)";
+                        this.onclick = function () {
+                            this.style.width = "50px"; this.style.height = "50px"; this.style.position = "static";
+                            this.style.transform = "none"; this.style.zIndex = "1"; this.style.boxShadow = "none";
+                            this.onclick = null;
+                        };
+                    };
+                    imgContainer.appendChild(img);
+                });
+            });
+        }
         viewer.appendChild(div);
     });
 }
@@ -247,39 +283,69 @@ function saveEditModal() {
     const accomplishments = document.getElementById("editAccomplishments").value.split("\n").map(a => a.trim()).filter(Boolean);
     const tools = document.getElementById("editTools").value.split(",").map(t => t.trim()).filter(Boolean);
 
+    // Convert l2Data values to proper types (matching submitDTR)
     const l2Data = {
-        personalHours: document.getElementById("editPersonalHours").value,
-        sleepHours: document.getElementById("editSleepHours").value,
-        recoveryHours: document.getElementById("editRecoveryHours").value,
-        commuteTotal: document.getElementById("editCommuteTotal").value,
-        commuteProductive: document.getElementById("editCommuteProductive").value,
-        identityScore: document.getElementById("editIdentityScore").value
+        personalHours: parseFloat(document.getElementById("editPersonalHours").value) || 0,
+        sleepHours: parseFloat(document.getElementById("editSleepHours").value) || 0,
+        recoveryHours: parseFloat(document.getElementById("editRecoveryHours").value) || 0,
+        commuteTotal: parseFloat(document.getElementById("editCommuteTotal").value) || 0,
+        commuteProductive: parseFloat(document.getElementById("editCommuteProductive").value) || 0,
+        identityScore: parseInt(document.getElementById("editIdentityScore").value) || null
     };
 
     const files = Array.from(document.getElementById("editImages").files);
     
     if (files.length > 0) {
-        let loaded = 0;
-        const newImages = [];
-        files.forEach(file => {
-            const reader = new FileReader();
-            reader.onload = e => {
-                newImages.push(e.target.result);
-                loaded++;
-                if (loaded === files.length) {
-                    finalizeSave(date, hours, reflection, accomplishments, tools, newImages, l2Data);
+        Promise.allSettled(files.map((file) => compressImage(file)))
+            .then((results) => {
+                console.log("Edit: Compression results:", results);
+                const compressed = results
+                    .filter(r => r.status === "fulfilled")
+                    .map(r => r.value);
+                console.log("Edit: Successfully compressed images count:", compressed.length, "of", files.length);
+                
+                if (!compressed || !compressed.length) {
+                    const old = dailyRecords[editingIndex];
+                    if (results.some(r => r.status === "rejected")) {
+                        const failedCount = results.filter(r => r.status === "rejected").length;
+                        alert("Image compression failed for " + failedCount + " image(s). Keeping old images.");
+                    }
+                    finalizeSave(date, hours, reflection, accomplishments, tools, old.imageIds || [], l2Data);
+                    return; // Do not continue Promise chain
                 }
-            };
-            reader.readAsDataURL(file);
-        });
+                
+                // Delete old images and save new ones
+                const old = dailyRecords[editingIndex];
+                const oldIds = old.imageIds || [];
+                if (oldIds.length && typeof deleteImagesFromStore === "function") {
+                    deleteImagesFromStore(oldIds).catch(() => {});
+                }
+                
+                Promise.allSettled(compressed.map((dataUrl) => saveImageToStore(dataUrl)))
+                    .then((saveResults) => {
+                        const newImageIds = saveResults
+                            .filter(r => r.status === "fulfilled")
+                            .map(r => r.value);
+                        console.log("Edit: Saved image IDs:", newImageIds);
+                        finalizeSave(date, hours, reflection, accomplishments, tools, newImageIds, l2Data);
+                    })
+                    .catch(err => {
+                        console.error("Edit: IndexedDB save error:", err);
+                        alert("Failed to save images to storage: " + (err && err.message ? err.message : err));
+                    });
+            })
+            .catch((err) => {
+                console.error("Edit: Image processing critical error:", err);
+                alert("Image processing failed: " + (err && err.message ? err.message : err));
+            });
     } else {
         const old = dailyRecords[editingIndex];
-        finalizeSave(date, hours, reflection, accomplishments, tools, old.images || [], l2Data);
+        finalizeSave(date, hours, reflection, accomplishments, tools, old.imageIds || [], l2Data);
     }
 }
 
-function finalizeSave(date, hours, reflection, accomplishments, tools, images, l2Data) {
-    dailyRecords[editingIndex] = new DailyRecord(date, hours, reflection, accomplishments, tools, images, l2Data);
+function finalizeSave(date, hours, reflection, accomplishments, tools, imageIds, l2Data) {
+    dailyRecords[editingIndex] = new DailyRecord(date, hours, reflection, accomplishments, tools, [], l2Data, imageIds || []);
     dailyRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
     localStorage.setItem("dtr", JSON.stringify(dailyRecords));
 
@@ -287,8 +353,9 @@ function finalizeSave(date, hours, reflection, accomplishments, tools, images, l
     loadReflectionViewer();
     const newIndex = dailyRecords.findIndex(r => r.date === date);
     showSummary(dailyRecords[newIndex]);
-    if (typeof renderDailyGraph === 'function') renderDailyGraph();
-    if (typeof renderWeeklyGraph === 'function') renderWeeklyGraph();
+    if (typeof renderDailyGraph === "function") renderDailyGraph();
+    if (typeof renderWeeklyGraph === "function") renderWeeklyGraph();
+    if (typeof updateStorageVisualizer === "function") updateStorageVisualizer();
     alert("Record updated successfully!");
 }
 
@@ -315,22 +382,25 @@ document.addEventListener("click", e => {
     const imgPreview = document.getElementById("editImagePreview");
     if (imgPreview) {
         imgPreview.innerHTML = "";
-        if (r.images && r.images.length) {
+        const hasImages = (r.imageIds && r.imageIds.length) || (r.images && r.images.length);
+        if (hasImages && typeof getRecordImageUrls === "function") {
             const p = document.createElement("p");
             p.style.width = "100%";
             p.style.fontSize = "10px";
             p.style.margin = "0 0 5px 0";
             p.innerText = "Current Images:";
             imgPreview.appendChild(p);
-            r.images.forEach(src => {
-                const img = document.createElement("img");
-                img.src = src;
-                img.style.width = "40px";
-                img.style.height = "40px";
-                img.style.objectFit = "cover";
-                img.style.borderRadius = "4px";
-                img.style.opacity = "0.5";
-                imgPreview.appendChild(img);
+            getRecordImageUrls(r).then((urls) => {
+                urls.forEach((src) => {
+                    const img = document.createElement("img");
+                    img.src = src;
+                    img.style.width = "40px";
+                    img.style.height = "40px";
+                    img.style.objectFit = "cover";
+                    img.style.borderRadius = "4px";
+                    img.style.opacity = "0.5";
+                    imgPreview.appendChild(img);
+                });
             });
         }
     }
