@@ -13,64 +13,21 @@ function renderTrajectoryChart(logs, customPace = null) {
     gradAccent.addColorStop(0, COLORS.accent + '66'); // 40% opacity
     gradAccent.addColorStop(1, COLORS.fill);
 
-    const sortedLogs = [...logs].sort((a,b) => new Date(a.date) - new Date(b.date));
-    const labels = [];
-    const actualCumulative = [];
-    const idealCumulative = [];
-    
-    let currentSum = 0;
-    let idealSum = 0;
-    
-    const start = new Date(OJT_START);
-    const end = new Date(TARGET_DEADLINE);
-    const totalWorkDays = countWorkDays(start, end);
-    // Standard benchmark is DAILY_TARGET_HOURS (8h) per work day
-    const goalPacePerWorkday = DAILY_TARGET_HOURS; 
-    
-    const logMap = {};
-    sortedLogs.forEach(l => logMap[l.date] = l.hours);
+    const series = buildTrajectorySeries({ logs, paceOverride: customPace });
+    const labels = series.labels;
+    const actualCumulative = series.actualCumulative;
+    const projectedCumulative = series.projectedCumulative;
+    const idealCumulative = series.idealCumulative;
+    const maxProjected = projectedCumulative.filter((v) => v != null);
+    const maxActual = actualCumulative.filter((v) => v != null);
+    const yMaxSource = Math.max(
+        MASTER_TARGET_HOURS,
+        maxActual.length ? Math.max(...maxActual) : 0,
+        maxProjected.length ? Math.max(...maxProjected) : 0
+    );
 
-    const f = calculateForecast(logs);
-    const lastLogDate = sortedLogs.length ? new Date(sortedLogs[sortedLogs.length - 1].date) : null;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const projectionStartDate = lastLogDate
-        ? (lastLogDate > today ? lastLogDate : today)
-        : today;
-    const projectedCumulative = [];
-    let projSum = 0;
-
-    const projectionPace = customPace !== null ? parseFloat(customPace) : (f.recentAvg || 8);
-
-    for(let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        const dateStr = d.toISOString().split('T')[0];
-        labels.push(new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
-        
-        const dayHours = logMap[dateStr];
-        if (dayHours !== undefined) {
-            currentSum += dayHours;
-        }
-        
-        // Continuous ACTUAL line up to the most recent record
-        if (d <= projectionStartDate) {
-            actualCumulative.push(currentSum);
-            if (!lastLogDate || d <= lastLogDate) {
-                projSum = currentSum;
-            }
-            projectedCumulative.push(null);
-        } else {
-            actualCumulative.push(null);
-            const day = d.getDay();
-            if (day !== 0) projSum += projectionPace; 
-            projectedCumulative.push(Math.round(projSum));
-        }
-        
-        const day = d.getDay();
-        // Standard OJT pace: 8h per working day
-        if (day !== 0) idealSum += goalPacePerWorkday;
-        
-        // Cap ideal line at 500h Milestone
-        idealCumulative.push(Math.min(MASTER_TARGET_HOURS, idealSum));
+    if (charts.trajectory && typeof charts.trajectory.destroy === "function") {
+        charts.trajectory.destroy();
     }
 
     charts.trajectory = new Chart(ctx, {
@@ -132,26 +89,13 @@ function renderTrajectoryChart(logs, customPace = null) {
             scales: { 
                 y: { 
                     beginAtZero: true,
-                    max: Math.ceil(Math.max(MASTER_TARGET_HOURS, currentSum, projSum) / 50) * 50 + 50,
+                    max: Math.ceil(yMaxSource / 50) * 50 + 50,
                     grid: { color: COLORS.grid } 
                 }, 
                 x: { ticks: { autoSkip: true, maxTicksLimit: 12 }, grid: { display: false } } 
             }
         }
     });
-}
-
-function countWorkDays(startDate, endDate) {
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(endDate);
-    end.setHours(0, 0, 0, 0);
-
-    let count = 0;
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        if (d.getDay() !== 0) count++;
-    }
-    return count;
 }
 
 function renderEnergyZoneChart(logs) {
@@ -204,7 +148,7 @@ function renderIdentityChart(logs) {
     const weeklyIdentity = {};
     logs.forEach(r => {
         if (r.identityScore > 0) {
-            const w = getWeekNumber(new Date(r.date));
+            const w = getWeekNumber(r.date);
             if (!weeklyIdentity[w]) weeklyIdentity[w] = { sum: 0, count: 0 };
             weeklyIdentity[w].sum += r.identityScore;
             weeklyIdentity[w].count++;
@@ -239,10 +183,10 @@ function renderCandlestickChart(logs) {
     const ctx = canvas.getContext('2d');
 
     const weeklyOHLC = {};
-    const sorted = [...logs].sort((a,b) => new Date(a.date) - new Date(b.date));
+    const sorted = [...logs].sort((a,b) => (toGmt8DateKey(a.date) || "").localeCompare(toGmt8DateKey(b.date) || ""));
 
     sorted.forEach(r => {
-        const w = getWeekNumber(new Date(r.date));
+        const w = getWeekNumber(r.date);
         const delta = r.hours - 8;
         
         if (!weeklyOHLC[w]) {
@@ -362,7 +306,9 @@ function renderRadarChart(logs) {
     const dayCounts = [0, 0, 0, 0, 0, 0];
 
     logs.forEach(l => {
-        const d = new Date(l.date).getDay();
+        const d0 = parseDateKeyGmt8(toGmt8DateKey(l.date));
+        if (!d0) return;
+        const d = getGmt8Weekday(d0);
         if (d === 0) return;
         const idx = d - 1;
         dayAverages[idx] += l.hours;

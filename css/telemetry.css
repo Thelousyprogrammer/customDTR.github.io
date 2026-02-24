@@ -96,14 +96,14 @@
   color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  font-family: var(--font-digital); /* Upgrade header */
+  font-family: var(--font-heading);
 }
 
 .stat-value { 
   font-size: 1.5rem; 
   margin: 0; 
   font-weight: bold; 
-  font-family: var(--font-digital); /* LED Update */
+  font-family: var(--font-body);
   text-shadow: var(--led-glow); 
   display: inline-block;
 }
@@ -112,13 +112,13 @@
   font-size: 0.85rem; 
   margin: 4px 0 0 0; 
   font-weight: 600; 
-  font-family: var(--font-digital);
+  font-family: var(--font-body);
   opacity: 0.9;
 }
 
 .stat-accent { color: var(--accent); }
 .stat-excellent { color: var(--color-good, #00FF00); }
-.stat-note { display: block; margin-top: 6px; font-size: 11px; opacity: 0.8; font-family: var(--font-digital); }
+.stat-note { display: block; margin-top: 6px; font-size: 11px; opacity: 0.8; font-family: var(--font-body); }
 
 .stat-rows { display: flex; flex-direction: column; gap: 6px; }
 .stat-row { 

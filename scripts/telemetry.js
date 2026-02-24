@@ -1,4 +1,4 @@
-/**
+﻿/**
  * TELEMETRY MAIN CONTROLLER
  */
 
@@ -103,7 +103,7 @@ function populateWeekSelector(logs) {
     select.innerHTML = '<option value="all">Full OJT Period</option>';
     if (!logs || logs.length === 0) return;
 
-    const weeks = [...new Set(logs.map(r => getWeekNumber(new Date(r.date))))].sort((a,b) => b-a);
+    const weeks = [...new Set(logs.map(r => getWeekNumber(r.date)))].sort((a,b) => b-a);
     
     weeks.forEach(w => {
         const opt = document.createElement("option");
@@ -119,7 +119,7 @@ function updateView() {
     const val = select.value;
     let filtered = allLogs;
     if (val !== "all") {
-        filtered = allLogs.filter(r => getWeekNumber(new Date(r.date)) == val);
+        filtered = allLogs.filter(r => getWeekNumber(r.date) == val);
     }
     renderTelemetry(filtered, val);
 }
@@ -128,68 +128,59 @@ function updateTargetPace(val) {
     const pace = parseFloat(val);
     const display = document.getElementById("paceSliderVal");
     if (display) display.innerText = pace.toFixed(1);
-    
-    if (charts.trajectory) {
-        // 1. Recalculate Projection Data in Real-time
-        const start = new Date(OJT_START);
-        const end = new Date(TARGET_DEADLINE);
-        const sortedLogs = [...allLogs].sort((a,b) => new Date(a.date) - new Date(b.date));
-        const logMap = {};
-        sortedLogs.forEach(l => logMap[l.date] = l.hours);
-        const lastLogDate = sortedLogs.length ? new Date(sortedLogs[sortedLogs.length - 1].date) : null;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const projectionStartDate = lastLogDate
-            ? (lastLogDate > today ? lastLogDate : today)
-            : today;
 
-        let currentSum = 0;
-        let projSum = 0;
-        const newProjection = [];
+    if (charts.trajectory && typeof buildTrajectorySeries === "function") {
+        const series = buildTrajectorySeries({ logs: allLogs, paceOverride: pace });
+        charts.trajectory.data.labels = series.labels;
+        charts.trajectory.data.datasets[0].data = series.actualCumulative;
+        charts.trajectory.data.datasets[1].data = series.projectedCumulative;
+        charts.trajectory.data.datasets[2].data = series.idealCumulative;
 
-        for(let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-            const dateStr = d.toISOString().split('T')[0];
-            const dayHours = logMap[dateStr];
-            if (dayHours !== undefined) {
-                currentSum += dayHours;
-            }
-
-            if (d <= projectionStartDate) {
-                newProjection.push(null);
-                if (!lastLogDate || d <= lastLogDate) {
-                    projSum = currentSum;
-                }
-            } else {
-                if (d.getDay() !== 0) projSum += pace;
-                newProjection.push(Math.round(projSum));
-            }
+        const projected = series.projectedCumulative.filter((v) => v != null);
+        const actual = series.actualCumulative.filter((v) => v != null);
+        const yMaxSource = Math.max(
+            MASTER_TARGET_HOURS,
+            actual.length ? Math.max(...actual) : 0,
+            projected.length ? Math.max(...projected) : 0
+        );
+        if (charts.trajectory.options && charts.trajectory.options.scales && charts.trajectory.options.scales.y) {
+            charts.trajectory.options.scales.y.max = Math.ceil(yMaxSource / 50) * 50 + 50;
         }
-        
-        // 2. Update Chart Dataset (Index 1 is Forecasted Projection)
-        charts.trajectory.data.datasets[1].data = newProjection;
-        charts.trajectory.update('none'); // 'none' for instant updates while sliding
+        charts.trajectory.update("none");
+    } else if (typeof renderTrajectoryChart === "function") {
+        renderTrajectoryChart(allLogs, pace);
+    }
 
-        // 3. Update Forecast UI Stats (Simulation Mode)
-        const f = calculateForecast(allLogs, pace);
-        safeUpdate("completionDateText", `Projected: ${f.projectedDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}`);
-        
-        const defEl = document.getElementById("timeDeficitText");
-        if (defEl) {
-            if (f.remainingHours > 0 && f.requiredRate > pace) {
-                defEl.innerHTML = `Simulation: <strong>Below Target Pace</strong>`;
-                defEl.style.color = COLORS.accent; 
-            } else if (f.isAhead) {
-                defEl.innerHTML = `Simulation: <strong>On Track</strong>`;
-                defEl.style.color = COLORS.good; 
-            }
+    const f = calculateForecastUnified({ logs: allLogs, paceOverride: pace });
+    safeUpdate("completionDateText", `Projected: ${formatGmt8DateLabel(f.projectedDate, { month: "long", day: "numeric", year: "numeric" })}`);
+
+    const paceSufficient = f.remainingHours <= 0 || pace >= f.requiredRate;
+    const defEl = document.getElementById("timeDeficitText");
+    if (defEl) {
+        if (f.remainingHours <= 0) {
+            defEl.innerHTML = `Simulation: <strong>Goal Reached</strong>`;
+            defEl.style.color = COLORS.excellent;
+        } else if (!paceSufficient) {
+            defEl.innerHTML = `Simulation: <strong>Below Target Pace</strong>`;
+            defEl.style.color = COLORS.accent;
+        } else {
+            defEl.innerHTML = `Simulation: <strong>On Track</strong>`;
+            defEl.style.color = COLORS.good;
         }
+    }
 
-        const statusMsg = document.getElementById("paceStatusMsg");
-        if (statusMsg) {
-            statusMsg.innerText = f.isAhead 
-                ? `“At ${pace.toFixed(1)}h/day, you finish by ${f.projectedDate.toLocaleDateString(undefined, {month:'short', day:'numeric'})}.”`
-                : `“${pace.toFixed(1)}h/day is insufficient. Target ${Math.ceil(f.requiredRate)}h+.”`;
-            statusMsg.style.color = f.isAhead ? COLORS.good : COLORS.accent;
+    const statusMsg = document.getElementById("paceStatusMsg");
+    if (statusMsg) {
+        const projectedLabel = formatGmt8DateLabel(f.projectedDate, { month: "short", day: "numeric" });
+        if (f.remainingHours <= 0) {
+            statusMsg.innerText = `"Goal already reached."`;
+            statusMsg.style.color = COLORS.excellent;
+        } else if (paceSufficient) {
+            statusMsg.innerText = `"At ${pace.toFixed(1)}h/day, you finish by ${projectedLabel}."`;
+            statusMsg.style.color = COLORS.good;
+        } else {
+            statusMsg.innerText = `"${pace.toFixed(1)}h/day is insufficient. Target ${Math.ceil(f.requiredRate)}h+."`;
+            statusMsg.style.color = COLORS.accent;
         }
     }
 }
@@ -205,13 +196,13 @@ function resetPaceSlider() {
 // --- MAIN RENDER LOOP ---
 
 function renderTelemetry(logs, selectedWeek = "all") {
-    const today = new Date();
+    const today = nowGmt8StartOfDay();
     Object.values(charts).forEach(c => { if(c && typeof c.destroy === 'function') c.destroy(); });
     charts = {};
 
     if (!logs) logs = [];
 
-    const f = calculateForecast(allLogs);
+    const f = calculateForecastUnified({ logs: allLogs });
 
     safeUpdate("totalRenderedText", `${Math.round(f.totalActualHours)}h`);
     safeUpdate("remainingHoursText", `${Math.round(f.remainingHours)}h`);
@@ -231,7 +222,7 @@ function renderTelemetry(logs, selectedWeek = "all") {
         }
     }
 
-    safeUpdate("completionDateText", f.projectedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+    safeUpdate("completionDateText", formatGmt8DateLabel(f.projectedDate, { month: "short", day: "numeric" }));
     safeUpdate("remHoursPace", `${Math.round(f.remainingHours)}h`);
     safeUpdate("remDaysPace", `${f.workDaysRemaining}`);
     safeUpdate("reqPaceValue", `${Math.ceil(f.requiredRate)}h/day`);
@@ -240,12 +231,12 @@ function renderTelemetry(logs, selectedWeek = "all") {
     const statusMsg = document.getElementById("paceStatusMsg");
     if (statusMsg) {
         if (f.remainingHours <= 0) {
-            statusMsg.innerText = "“Goal Reached! OJT Complete.”";
+            statusMsg.innerText = "Goal Reached! OJT Complete.";
             statusMsg.style.color = COLORS.excellent;
         } else {
-            statusMsg.innerText = f.isAhead 
-                ? `“On track to finish by ${f.projectedDate.toLocaleDateString(undefined, {month:'short', day:'numeric'})}.”`
-                : `“Required pace higher than current. Increase hours.”`;
+            statusMsg.innerText = f.isAhead
+                ? `"On track to finish by ${formatGmt8DateLabel(f.projectedDate, { month: "short", day: "numeric" })}."`
+                : `"Required pace higher than current. Increase hours."`;
             statusMsg.style.color = f.isAhead ? COLORS.good : COLORS.accent;
         }
     }
@@ -307,7 +298,7 @@ function renderTelemetry(logs, selectedWeek = "all") {
 
 function handleHealthIndicators(logs) {
     let fatigueRisk = 0;
-    const sorted = [...allLogs].sort((a,b) => new Date(a.date) - new Date(b.date));
+    const sorted = [...allLogs].sort((a,b) => (toGmt8DateKey(a.date) || "").localeCompare(toGmt8DateKey(b.date) || ""));
     
     let consecutiveHigh = 0;
     for (const r of sorted) {
@@ -326,12 +317,12 @@ function handleHealthIndicators(logs) {
             fatLabel.style.color = COLORS.good;
             if (fatNote) fatNote.innerText = "Performance is sustainable";
         } else if (fatigueRisk < 3) {
-            if (fatInd) fatInd.innerText = "🟡";
+            if (fatInd) fatInd.innerText = "🟠";
             fatLabel.innerText = "Accumulating Fatigue";
             fatLabel.style.color = COLORS.warning;
             if (fatNote) fatNote.innerText = "High load detected";
         } else {
-            if (fatInd) fatInd.innerText = "🔴";
+            if (fatInd) fatInd.innerText = "🚩";
             fatLabel.innerText = "Burnout Risk";
             fatLabel.style.color = COLORS.accent;
             if (fatNote) fatNote.innerText = "CRITICAL: Rest Required";
@@ -345,7 +336,7 @@ function handleHealthIndicators(logs) {
 
     if (cogLabel) {
         if (avgTotalHours > 12) {
-            cogInd.innerText = "🪫";
+            cogInd.innerText = "⚠️";
             cogLabel.innerText = "System Overload";
             cogLabel.style.color = COLORS.accent;
             cogNote.innerText = `Avg Load: ${avgTotalHours.toFixed(1)}h/day`;
@@ -355,7 +346,7 @@ function handleHealthIndicators(logs) {
             cogLabel.style.color = COLORS.warning;
             cogNote.innerText = "Pushing boundaries";
         } else {
-            cogInd.innerText = "🔋";
+            cogInd.innerText = "✅";
             cogLabel.innerText = "Optimal";
             cogLabel.style.color = COLORS.good;
             cogNote.innerText = "Steady mental state";
@@ -365,15 +356,15 @@ function handleHealthIndicators(logs) {
 
 function calculateMomentum(today) {
     const oneDay = 24 * 60 * 60 * 1000;
-    const now = new Date(today);
-    now.setHours(23, 59, 59, 999); 
+    const now = addDaysGmt8(today, 1);
     
     const sevenDaysAgo = new Date(now.getTime() - (7 * oneDay));
     const fourteenDaysAgo = new Date(now.getTime() - (14 * oneDay));
 
     const sumHours = (start, end) => {
         return allLogs.reduce((sum, r) => {
-            const d = new Date(r.date);
+            const d = parseDateKeyGmt8(toGmt8DateKey(r.date));
+            if (!d) return sum;
             return (d > start && d <= end) ? sum + r.hours : sum;
         }, 0);
     };
@@ -397,7 +388,7 @@ function calculateMomentum(today) {
     }
 
     let streak = 0;
-    const sortedDesc = [...allLogs].sort((a,b) => new Date(b.date) - new Date(a.date));
+    const sortedDesc = [...allLogs].sort((a,b) => (toGmt8DateKey(b.date) || "").localeCompare(toGmt8DateKey(a.date) || ""));
     for (const r of sortedDesc) {
         if (r.hours >= 8) streak++;
         else break;

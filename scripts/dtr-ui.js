@@ -29,9 +29,9 @@ function clearDTRForm() {
 
 function updateWeeklyCounter(dateInput) {
     if (!dateInput) return;
-    const weekNum = getWeekNumber(new Date(dateInput));
+    const weekNum = getWeekNumber(dateInput);
     const weekHours = dailyRecords
-        .filter(r => getWeekNumber(new Date(r.date)) === weekNum)
+        .filter(r => getWeekNumber(r.date) === weekNum)
         .reduce((sum, r) => sum + r.hours, 0);
 
     const maxWeeklyHours = DAILY_TARGET_HOURS * 7;
@@ -76,7 +76,7 @@ function showSummary(record) {
     const totalHours = getTotalHours();
     let overallColor = (totalHours >= MASTER_TARGET_HOURS) ? DTR_COLORS.excellent : DTR_COLORS.good;
     
-    const weekNum = record.date ? getWeekNumber(new Date(record.date)) : null;
+    const weekNum = record.date ? getWeekNumber(record.date) : null;
     const weekHours = weekNum ? getWeekHours(weekNum) : 0;
     const maxWeeklyHours = DAILY_TARGET_HOURS * 7;
     let weekColor = DTR_COLORS.neutral;
@@ -88,7 +88,7 @@ function showSummary(record) {
     const commuteEff = record.commuteTotal > 0 ? ((record.commuteProductive / record.commuteTotal) * 100).toFixed(1) + "%" : "N/A";
 
     // OJT Forecast logic Alignment (SINGLE SOURCE OF TRUTH)
-    const f = calculateForecast(dailyRecords);
+    const f = calculateForecastUnified({ logs: dailyRecords });
     const absDelta = Math.abs(f.currentStatusDelta).toFixed(1);
     const statusText = f.currentStatusDelta > 0 ? `Ahead (+${absDelta}h)` : (f.currentStatusDelta < 0 ? `Behind (-${absDelta}h)` : "On Track");
 
@@ -126,7 +126,7 @@ function showSummary(record) {
                 <div>Total Rendered: <strong>${Math.round(f.totalActualHours)}h</strong></div>
                 <div>Rem. Hours: <strong>${Math.round(f.remainingHours)}h</strong></div>
                 <div>Need Pace: <strong>${Math.ceil(f.requiredRate)}h/day</strong></div>
-                <div>Projected: <strong>${f.projectedDate.toLocaleDateString(undefined, {month:'short', day:'numeric'})}</strong></div>
+                <div>Projected: <strong>${formatGmt8DateLabel(f.projectedDate, {month:'short', day:'numeric'})}</strong></div>
             </div>
         </div>
     `;
@@ -166,7 +166,7 @@ function loadReflectionViewer() {
     }
 
     const latestDate = dailyRecords[dailyRecords.length - 1].date;
-    const currentWeek = getWeekNumber(new Date(latestDate));
+    const currentWeek = getWeekNumber(latestDate);
     const maxWeeklyHours = DAILY_TARGET_HOURS * 7;
     const currentWeekHours = getWeekHours(currentWeek);
 
@@ -190,13 +190,13 @@ function loadReflectionViewer() {
         return { r, originalIndex: index, trendLabel, trendColor };
     });
 
-    if (currentSortMode === "date-desc") displayItems.sort((a,b) => new Date(b.r.date) - new Date(a.r.date));
+    if (currentSortMode === "date-desc") displayItems.sort((a,b) => (toGmt8DateKey(b.r.date) || "").localeCompare(toGmt8DateKey(a.r.date) || ""));
     else if (currentSortMode === "delta-desc") displayItems.sort((a,b) => b.r.delta - a.r.delta);
     else if (currentSortMode === "delta-asc") displayItems.sort((a,b) => a.r.delta - b.r.delta);
 
     displayItems.forEach(item => {
         const r = item.r;
-        const weekNum = getWeekNumber(new Date(r.date));
+        const weekNum = getWeekNumber(r.date);
         const weekHours = getWeekHours(weekNum);
         let deltaColor = DTR_COLORS.neutral;
         if (r.delta <= 0) deltaColor = DTR_COLORS.warning;
@@ -346,7 +346,7 @@ function saveEditModal() {
 
 async function finalizeSave(date, hours, reflection, accomplishments, tools, imageIds, l2Data) {
     dailyRecords[editingIndex] = new DailyRecord(date, hours, reflection, accomplishments, tools, [], l2Data, imageIds || []);
-    dailyRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
+    dailyRecords.sort((a, b) => (toGmt8DateKey(a.date) || "").localeCompare(toGmt8DateKey(b.date) || ""));
     if (typeof persistDTR === "function") {
         const ok = await persistDTR(dailyRecords);
         if (!ok) {

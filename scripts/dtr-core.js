@@ -8,6 +8,7 @@ const DAILY_TARGET_HOURS = 8;
 const GREAT_DELTA_THRESHOLD = 2;
 const OJT_START = new Date(2026, 0, 26);
 const TARGET_DEADLINE = new Date(2026, 3, 25); // April 25
+const TZ_OFFSET_MINUTES = 8 * 60; // GMT+8 fixed computation basis
 
 const DTR_COLORS = {
     neutral: "var(--color-neutral)",
@@ -42,12 +43,106 @@ class DailyRecord {
 
 // --- UTILITIES ---
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const warnedInvalidDateInputs = new Set();
+
+function pad2(n) {
+    return String(n).padStart(2, "0");
+}
+
+function warnInvalidDateInput(input) {
+    const key = String(input);
+    if (warnedInvalidDateInputs.has(key)) return;
+    warnedInvalidDateInputs.add(key);
+    console.warn("Skipping invalid date input:", input);
+}
+
+function toGmt8DateKey(input) {
+    if (input == null) return null;
+    if (typeof input === "string") {
+        const match = input.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+    }
+
+    const d = input instanceof Date ? new Date(input.getTime()) : new Date(input);
+    if (Number.isNaN(d.getTime())) {
+        warnInvalidDateInput(input);
+        return null;
+    }
+    const shifted = new Date(d.getTime() + TZ_OFFSET_MINUTES * 60 * 1000);
+    return `${shifted.getUTCFullYear()}-${pad2(shifted.getUTCMonth() + 1)}-${pad2(shifted.getUTCDate())}`;
+}
+
+function parseDateKeyGmt8(dateKey) {
+    if (typeof dateKey !== "string") return null;
+    const match = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) {
+        warnInvalidDateInput(dateKey);
+        return null;
+    }
+    const y = Number(match[1]);
+    const m = Number(match[2]);
+    const d = Number(match[3]);
+    const utcMs = Date.UTC(y, m - 1, d, 0, 0, 0) - (TZ_OFFSET_MINUTES * 60 * 1000);
+    const parsed = new Date(utcMs);
+    if (Number.isNaN(parsed.getTime())) {
+        warnInvalidDateInput(dateKey);
+        return null;
+    }
+    return parsed;
+}
+
+function nowGmt8StartOfDay() {
+    return parseDateKeyGmt8(toGmt8DateKey(new Date()));
+}
+
+function addDaysGmt8(date, n) {
+    const baseKey = toGmt8DateKey(date);
+    const baseDate = parseDateKeyGmt8(baseKey);
+    if (!baseDate) return null;
+    return new Date(baseDate.getTime() + (n * DAY_MS));
+}
+
+function diffDaysGmt8(a, b) {
+    if (!a || !b) return 0;
+    return Math.floor((b.getTime() - a.getTime()) / DAY_MS);
+}
+
+function getGmt8Weekday(date) {
+    if (!date) return 0;
+    const shifted = new Date(date.getTime() + TZ_OFFSET_MINUTES * 60 * 1000);
+    return shifted.getUTCDay(); // 0=Sun ... 6=Sat in GMT+8
+}
+
+function isWorkdayGmt8(date) {
+    if (!date) return false;
+    return getGmt8Weekday(date) !== 0; // Exclude Sundays only (Mon-Sat workdays)
+}
+
+function countWorkdaysGmt8(start, endInclusive) {
+    if (!start || !endInclusive) return 0;
+    let count = 0;
+    for (let d = new Date(start.getTime()); d <= endInclusive; d = addDaysGmt8(d, 1)) {
+        if (isWorkdayGmt8(d)) count++;
+    }
+    return count;
+}
+
+function formatGmt8DateLabel(input, options = { month: "short", day: "numeric" }) {
+    const key = toGmt8DateKey(input);
+    if (!key) return "";
+    const date = parseDateKeyGmt8(key);
+    if (!date) return "";
+    return date.toLocaleDateString("en-US", { ...options, timeZone: "Asia/Manila" });
+}
+
 function getWeekNumber(date, reference = OJT_START) {
-    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const ref = new Date(reference.getFullYear(), reference.getMonth(), reference.getDate());
+    const d = parseDateKeyGmt8(toGmt8DateKey(date));
+    const ref = parseDateKeyGmt8(toGmt8DateKey(reference));
+    if (!d || !ref) return 1;
     const diff = d.getTime() - ref.getTime();
     if (diff < 0) return 1;
-    return Math.floor(diff / (7 * 24 * 60 * 60 * 1000)) + 1;
+    return Math.floor(diff / (7 * DAY_MS)) + 1;
 }
 
 function getTotalHours() {
@@ -60,17 +155,15 @@ function getOverallDelta() {
 
 function getWeekHours(weekNumber) {
     return dailyRecords
-        .filter(r => getWeekNumber(new Date(r.date)) === weekNumber)
+        .filter(r => getWeekNumber(r.date) === weekNumber)
         .reduce((sum, r) => sum + r.hours, 0);
 }
 
 function getWeekDateRange(weekNumber) {
-    const ref = new Date(OJT_START.getFullYear(), OJT_START.getMonth(), OJT_START.getDate());
-    const start = new Date(ref);
-    start.setDate(ref.getDate() + (weekNumber - 1) * 7);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    const fmt = d => `${d.toLocaleDateString("en-US", { month: "short" })} ${d.getDate()}, ${d.getFullYear()}`;
+    const ref = parseDateKeyGmt8(toGmt8DateKey(OJT_START));
+    const start = addDaysGmt8(ref, (weekNumber - 1) * 7);
+    const end = addDaysGmt8(start, 6);
+    const fmt = d => formatGmt8DateLabel(d, { month: "short", day: "numeric", year: "numeric" });
     return { start: fmt(start), end: fmt(end), startDate: start, endDate: end };
 }
 
@@ -88,74 +181,148 @@ function setTheme(themeName) {
     console.log("Theme synced: " + themeName);
 }
 
-function calculateForecast(logs = dailyRecords, overridePace = null) {
-    const totalActualHours = logs.reduce((sum, r) => sum + (r.hours || 0), 0);
+function normalizeForecastLogs(logs = dailyRecords) {
+    const normalized = [];
+    (logs || []).forEach((r) => {
+        const dateKey = toGmt8DateKey(r && r.date);
+        if (!dateKey) return;
+        normalized.push({ ...r, dateKey, hours: parseFloat(r.hours) || 0 });
+    });
+    normalized.sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+    return normalized;
+}
+
+function calculateForecastUnified({
+    logs = dailyRecords,
+    paceOverride = null,
+    startDate = OJT_START,
+    deadlineDate = TARGET_DEADLINE,
+    todayOverride = null
+} = {}) {
+    const normalizedLogs = normalizeForecastLogs(logs);
+    const totalActualHours = normalizedLogs.reduce((sum, r) => sum + (r.hours || 0), 0);
     const remainingHours = Math.max(0, MASTER_TARGET_HOURS - totalActualHours);
-    
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    
-    // 1. Calculate Ideal Progress to Date (Single Source of Truth)
-    // Based on the trajectory chart's 8h/day workday baseline
+
+    const start = parseDateKeyGmt8(toGmt8DateKey(startDate));
+    const deadline = parseDateKeyGmt8(toGmt8DateKey(deadlineDate));
+    const today = todayOverride ? parseDateKeyGmt8(toGmt8DateKey(todayOverride)) : nowGmt8StartOfDay();
+
     let idealHoursToDate = 0;
-    let tempDate = new Date(OJT_START);
-    while (tempDate <= today) {
-        if (tempDate.getDay() !== 0) { // Mon-Sat
-            idealHoursToDate += DAILY_TARGET_HOURS;
+    if (start && today) {
+        for (let d = new Date(start.getTime()); d <= today; d = addDaysGmt8(d, 1)) {
+            if (isWorkdayGmt8(d)) idealHoursToDate += DAILY_TARGET_HOURS;
         }
-        tempDate.setDate(tempDate.getDate() + 1);
     }
-    // Cap ideal hours at 500h
     idealHoursToDate = Math.min(MASTER_TARGET_HOURS, idealHoursToDate);
     const currentStatusDelta = totalActualHours - idealHoursToDate;
 
-    // 2. Count Work Days Remaining for Pace calculation
-    let workDaysUntilDeadline = 0;
-    let d = new Date(today);
-    while (d < TARGET_DEADLINE) {
-        d.setDate(d.getDate() + 1);
-        if (d.getDay() !== 0) workDaysUntilDeadline++;
-    }
-    const requiredRate = workDaysUntilDeadline > 0 ? (remainingHours / workDaysUntilDeadline) : 0;
-
-    // 3. Determine Projection Pace
-    let pace;
-    if (overridePace !== null) {
-        pace = parseFloat(overridePace);
-    } else {
-        const recentLogs = logs.slice(-7);
-        const recentAvg = recentLogs.length > 0 
-            ? recentLogs.reduce((s, r) => s + (r.hours || 0), 0) / recentLogs.length 
-            : 8;
-        pace = Math.max(0.1, recentAvg);
-    }
-    
-    // 4. Project completion date based on pace, skipping Sundays
-    let projHoursAccum = totalActualHours;
-    let projDate = new Date(today);
-    if (remainingHours > 0) {
-        while (projHoursAccum < MASTER_TARGET_HOURS) {
-            projDate.setDate(projDate.getDate() + 1);
-            if (projDate.getDay() !== 0) {
-                projHoursAccum += pace;
-            }
-            if (projDate.getFullYear() > today.getFullYear() + 1) break;
+    let workDaysRemaining = 0;
+    if (today && deadline) {
+        for (let d = addDaysGmt8(today, 1); d && d <= deadline; d = addDaysGmt8(d, 1)) {
+            if (isWorkdayGmt8(d)) workDaysRemaining++;
         }
     }
+    const calendarDaysRemaining = today && deadline ? Math.max(0, diffDaysGmt8(today, deadline)) : 0;
+    const requiredRate = workDaysRemaining > 0 ? (remainingHours / workDaysRemaining) : 0;
 
-    // Ahead means actual hours are >= what the 8h/day baseline says we should have
+    let paceUsed = 8;
+    if (paceOverride !== null && !Number.isNaN(parseFloat(paceOverride))) {
+        paceUsed = Math.max(0.1, parseFloat(paceOverride));
+    } else {
+        const recentLogs = normalizedLogs.slice(-7);
+        const recentAvg = recentLogs.length > 0
+            ? recentLogs.reduce((s, r) => s + (r.hours || 0), 0) / recentLogs.length
+            : 8;
+        paceUsed = Math.max(0.1, recentAvg);
+    }
+
+    let projectedDate = today ? new Date(today.getTime()) : parseDateKeyGmt8(toGmt8DateKey(new Date()));
+    let projHoursAccum = totalActualHours;
+    let safety = 0;
+    while (remainingHours > 0 && projHoursAccum < MASTER_TARGET_HOURS && safety < 5000) {
+        safety++;
+        projectedDate = addDaysGmt8(projectedDate, 1);
+        if (isWorkdayGmt8(projectedDate)) projHoursAccum += paceUsed;
+    }
+
+    const projectedDateKey = toGmt8DateKey(projectedDate);
+    const projectedDateLabel = formatGmt8DateLabel(projectedDate, { month: "short", day: "numeric", year: "numeric" });
     const isAhead = totalActualHours >= idealHoursToDate;
 
     return {
-        remainingHours,
-        daysRemaining: Math.max(0, Math.ceil((TARGET_DEADLINE - today) / (24*60*60*1000))),
-        workDaysRemaining: workDaysUntilDeadline,
-        requiredRate,
-        recentAvg: pace,
-        projectedDate: projDate,
         totalActualHours,
+        remainingHours,
+        workDaysRemaining,
+        calendarDaysRemaining,
+        requiredRate,
+        paceUsed,
         idealHoursToDate,
         currentStatusDelta,
-        isAhead
+        isAhead,
+        projectedDateKey,
+        projectedDateLabel,
+        projectedDate,
+        recentAvg: paceUsed,
+        daysRemaining: calendarDaysRemaining,
+        workDaysUntilDeadline: workDaysRemaining
     };
+}
+
+function buildTrajectorySeries({ logs = dailyRecords, paceOverride = null, startDate = OJT_START, deadlineDate = TARGET_DEADLINE } = {}) {
+    const normalizedLogs = normalizeForecastLogs(logs);
+    const forecast = calculateForecastUnified({ logs: normalizedLogs, paceOverride, startDate, deadlineDate });
+    const start = parseDateKeyGmt8(toGmt8DateKey(startDate));
+    const deadline = parseDateKeyGmt8(toGmt8DateKey(deadlineDate));
+    const today = nowGmt8StartOfDay();
+    const lastLogKey = normalizedLogs.length ? normalizedLogs[normalizedLogs.length - 1].dateKey : null;
+    const lastLogDate = lastLogKey ? parseDateKeyGmt8(lastLogKey) : null;
+    const projectionStartDate = lastLogDate && lastLogDate > today ? lastLogDate : today;
+
+    const logMap = {};
+    normalizedLogs.forEach((l) => { logMap[l.dateKey] = l.hours; });
+
+    const labels = [];
+    const labelDateKeys = [];
+    const actualCumulative = [];
+    const projectedCumulative = [];
+    const idealCumulative = [];
+
+    let currentSum = 0;
+    let projSum = 0;
+    let idealSum = 0;
+
+    for (let d = new Date(start.getTime()); d <= deadline; d = addDaysGmt8(d, 1)) {
+        const dateKey = toGmt8DateKey(d);
+        labelDateKeys.push(dateKey);
+        labels.push(formatGmt8DateLabel(d, { month: "short", day: "numeric" }));
+
+        const dayHours = logMap[dateKey];
+        if (dayHours !== undefined) currentSum += dayHours;
+
+        if (d <= projectionStartDate) {
+            actualCumulative.push(currentSum);
+            if (!lastLogDate || d <= lastLogDate) projSum = currentSum;
+            projectedCumulative.push(null);
+        } else {
+            actualCumulative.push(null);
+            if (isWorkdayGmt8(d)) projSum += forecast.paceUsed;
+            projectedCumulative.push(Math.round(projSum));
+        }
+
+        if (isWorkdayGmt8(d)) idealSum += DAILY_TARGET_HOURS;
+        idealCumulative.push(Math.min(MASTER_TARGET_HOURS, idealSum));
+    }
+
+    return {
+        labels,
+        labelDateKeys,
+        actualCumulative,
+        projectedCumulative,
+        idealCumulative,
+        forecast
+    };
+}
+
+function calculateForecast(logs = dailyRecords, overridePace = null) {
+    return calculateForecastUnified({ logs, paceOverride: overridePace });
 }

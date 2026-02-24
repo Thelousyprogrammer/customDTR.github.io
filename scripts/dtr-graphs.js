@@ -16,26 +16,25 @@ function renderDailyGraph(records = dailyRecords) {
         return;
     }
 
-    // Helper to get YYYY-MM-DD in local time (preventing ISO timezone shift bug)
-    const toPSTISO = (date) => {
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-    };
-
     // Calculate Dynamic Range based strictly on provided records
-    const dates = records.map(r => new Date(r.date));
+    const dates = records
+        .map(r => parseDateKeyGmt8(toGmt8DateKey(r.date)))
+        .filter(Boolean);
+    if (!dates.length) {
+        container.innerHTML = "<p class='empty-msg'>No valid dated records to visualize.</p>";
+        return;
+    }
+    const today = nowGmt8StartOfDay();
     const minDate = new Date(Math.min(...dates));
-    const maxDate = new Date(Math.max(...dates, new Date()));
+    const maxDate = new Date(Math.max(...dates, today));
     
     // Align Start to Sunday
     const start = new Date(minDate);
-    start.setDate(start.getDate() - start.getDay());
+    start.setTime(addDaysGmt8(start, -getGmt8Weekday(start)).getTime());
 
     // Align End to Saturday of the max week
     const end = new Date(maxDate);
-    end.setDate(end.getDate() + (6 - end.getDay()));
+    end.setTime(addDaysGmt8(end, 6 - getGmt8Weekday(end)).getTime());
 
     const logMap = {};
     records.forEach(r => logMap[r.date] = r);
@@ -44,9 +43,9 @@ function renderDailyGraph(records = dailyRecords) {
     let lastCol = -10; 
     let daysIdx = 0;
 
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    for (let d = new Date(start); d <= end; d = addDaysGmt8(d, 1)) {
         const colIndex = Math.floor(daysIdx / 7) + 1;
-        const dateStr = toPSTISO(d);
+        const dateStr = toGmt8DateKey(d);
         const record = logMap[dateStr];
         const recordHours = record ? record.hours : 0;
         
@@ -62,11 +61,12 @@ function renderDailyGraph(records = dailyRecords) {
         cell.classList.add(`cell-${['empty', 'low', 'mid', 'high'][level]}`);
         
         // TOOLTIP
-        const formattedDate = d.toLocaleDateString('en-PH', { 
+        const formattedDate = d.toLocaleDateString('en-PH', {
             weekday: 'short', 
             month: 'short', 
             day: 'numeric', 
-            year: 'numeric' 
+            year: 'numeric',
+            timeZone: "Asia/Manila"
         });
         cell.title = `${formattedDate}: ${recordHours}h ${record ? '(Click to view)' : ''}`;
 
@@ -81,8 +81,8 @@ function renderDailyGraph(records = dailyRecords) {
         container.appendChild(cell);
 
         // Align label to the column where the 1st of the month falls
-        if (d.getDate() === 1) {
-            const monthName = d.toLocaleString('default', { month: 'short' });
+        if (toGmt8DateKey(d).slice(8, 10) === "01") {
+            const monthName = d.toLocaleString('default', { month: 'short', timeZone: "Asia/Manila" });
             if (!usedMonthNames.has(monthName) && (colIndex - lastCol) > 2) {
                 usedMonthNames.add(monthName);
                 lastCol = colIndex;
@@ -105,9 +105,10 @@ function renderWeeklyGraph(records = dailyRecords) {
 
     const weeklyData = {};
     records.forEach(r => {
-        const d = new Date(r.date);
-        const month = d.toLocaleString('default', { month: 'short' });
-        const year = d.getFullYear();
+        const d = parseDateKeyGmt8(toGmt8DateKey(r.date));
+        if (!d) return;
+        const month = d.toLocaleString('default', { month: 'short', timeZone: "Asia/Manila" });
+        const year = d.toLocaleString('en-US', { year: 'numeric', timeZone: "Asia/Manila" });
         const key = `${month} ${year}`;
         const week = getWeekNumber(d);
 

@@ -12,7 +12,7 @@
   --color-excellent: var(--level-3);
 
   /* --- MODERN LED MATRIX UPGRADE --- */
-  --font-digital: "UAV OSD Sans", monospace;
+  --font-digital: var(--font-body, monospace);
   --lcd-bg: rgba(0, 0, 0, 0.6);
   --led-matrix: radial-gradient(
     circle,
