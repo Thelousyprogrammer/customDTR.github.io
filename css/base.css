@@ -500,12 +500,39 @@ button:hover {
   border-radius: 6px;
   overflow: hidden;
 }
+.storage-bar-host {
+  position: relative;
+}
 .storage-bar {
   height: 100%;
   background: var(--color-good);
   border-radius: 5px;
   transition: width 0.3s ease, background 0.3s ease;
   min-width: 0;
+}
+.storage-hover-tip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(4px);
+  background: rgba(0, 0, 0, 0.9);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 30;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.storage-bar-host:hover .storage-hover-tip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
 }
 .storage-bar[aria-valuenow] {
   /* Color by usage: green < 50%, yellow 50–80%, red 80%+ */
@@ -520,4 +547,21 @@ button:hover {
   font-size: 12px;
   margin: 8px 0 0 0;
   font-weight: 600;
+}
+.storage-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.storage-action-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.storage-action-btn--accent {
+  border-color: var(--accent);
+  color: var(--accent);
 }

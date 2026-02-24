@@ -344,10 +344,18 @@ function saveEditModal() {
     }
 }
 
-function finalizeSave(date, hours, reflection, accomplishments, tools, imageIds, l2Data) {
+async function finalizeSave(date, hours, reflection, accomplishments, tools, imageIds, l2Data) {
     dailyRecords[editingIndex] = new DailyRecord(date, hours, reflection, accomplishments, tools, [], l2Data, imageIds || []);
     dailyRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
-    localStorage.setItem("dtr", JSON.stringify(dailyRecords));
+    if (typeof persistDTR === "function") {
+        const ok = await persistDTR(dailyRecords);
+        if (!ok) {
+            alert("Failed to save record update.");
+            return;
+        }
+    } else {
+        localStorage.setItem("dtr", JSON.stringify(dailyRecords));
+    }
 
     closeEditModal();
     loadReflectionViewer();

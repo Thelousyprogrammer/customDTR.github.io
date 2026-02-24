@@ -66,9 +66,25 @@ const safeUpdate = (id, value, color = null) => {
 };
 
 function fetchTelemetryData() {
-    return new Promise((resolve) => {
-        const raw = localStorage.getItem("dtr");
-        const logs = JSON.parse(raw) || [];
+    return new Promise(async (resolve) => {
+        let logs = [];
+
+        if (typeof getRecordsFromStore === "function") {
+            try {
+                const stored = await getRecordsFromStore();
+                if (Array.isArray(stored)) logs = stored;
+            } catch (_) {}
+        }
+
+        if (!logs.length) {
+            try {
+                const raw = localStorage.getItem("dtr");
+                logs = JSON.parse(raw) || [];
+            } catch (_) {
+                logs = [];
+            }
+        }
+
         const cleaned = logs.map(l => ({
             ...l,
             hours: parseFloat(l.hours) || 0,

@@ -3,10 +3,13 @@
  * Initializes the application and global event listeners
  */
 
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
     // 1. Initial Data Sync
-    dailyRecords = JSON.parse(localStorage.getItem("dtr")) || [];
-    if (typeof migrateImagesToIndexedDB === "function") migrateImagesToIndexedDB();
+    if (typeof loadDTRRecords === "function") {
+        dailyRecords = await loadDTRRecords();
+    } else {
+        dailyRecords = JSON.parse(localStorage.getItem("dtr")) || [];
+    }
 
     // 2. Initial Theme Sync
     const savedTheme = localStorage.getItem('user-theme') || 'f1';

@@ -6,7 +6,9 @@
 
 const DTR_IMAGE_DB_NAME = "DTRImageStore";
 const DTR_IMAGE_STORE_NAME = "images";
-const DB_VERSION = 1;
+const DTR_RECORDS_STORE_NAME = "records";
+const DTR_RECORDS_KEY = "primary";
+const DB_VERSION = 2;
 
 let _db = null;
 
@@ -35,6 +37,9 @@ function openImageDB() {
             const db = e.target.result;
             if (!db.objectStoreNames.contains(DTR_IMAGE_STORE_NAME)) {
                 db.createObjectStore(DTR_IMAGE_STORE_NAME, { keyPath: "id" });
+            }
+            if (!db.objectStoreNames.contains(DTR_RECORDS_STORE_NAME)) {
+                db.createObjectStore(DTR_RECORDS_STORE_NAME, { keyPath: "id" });
             }
         };
     });
@@ -145,6 +150,52 @@ function getImageStoreEstimate() {
         return navigator.storage.estimate();
     }
     return Promise.resolve({ usage: 0, quota: 0 });
+}
+
+function saveRecordsToStore(records) {
+    const payload = Array.isArray(records) ? records : [];
+    return openImageDB().then((db) => {
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(DTR_RECORDS_STORE_NAME, "readwrite");
+            const store = tx.objectStore(DTR_RECORDS_STORE_NAME);
+            tx.onabort = () => reject(buildStoreError("saveRecordsToStore transaction abort", tx.error));
+            tx.onerror = () => reject(buildStoreError("saveRecordsToStore transaction", tx.error));
+
+            const req = store.put({ id: DTR_RECORDS_KEY, records: payload });
+            req.onsuccess = () => resolve(true);
+            req.onerror = () => reject(buildStoreError("saveRecordsToStore request", req.error));
+        });
+    });
+}
+
+function getRecordsFromStore() {
+    return openImageDB().then((db) => {
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(DTR_RECORDS_STORE_NAME, "readonly");
+            const store = tx.objectStore(DTR_RECORDS_STORE_NAME);
+            const req = store.get(DTR_RECORDS_KEY);
+            req.onsuccess = () => {
+                if (!req.result || !Array.isArray(req.result.records)) {
+                    resolve(null);
+                    return;
+                }
+                resolve(req.result.records);
+            };
+            req.onerror = () => reject(buildStoreError("getRecordsFromStore request", req.error));
+        });
+    });
+}
+
+function clearRecordsFromStore() {
+    return openImageDB().then((db) => {
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(DTR_RECORDS_STORE_NAME, "readwrite");
+            const store = tx.objectStore(DTR_RECORDS_STORE_NAME);
+            const req = store.delete(DTR_RECORDS_KEY);
+            req.onsuccess = () => resolve(true);
+            req.onerror = () => reject(buildStoreError("clearRecordsFromStore request", req.error));
+        });
+    });
 }
 
 /**

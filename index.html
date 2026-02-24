@@ -198,8 +198,6 @@
         </select>
       <span id="exportWeekRangeLabel" class="export-week-range" aria-live="polite"></span>
       <button onclick="exportWeeklyPDF()">Export Week</button>
-      <span class="export-divider">|</span>
-      <button onclick="optimizeStorage()" title="Retroactively compress all images to free up space" style="background:transparent; border:1px solid var(--accent); color:var(--accent);">Optimize DB</button>
     </div>
   </div>
 
@@ -213,8 +211,11 @@
         <span id="storageLimitText">5 MB</span>
         <span class="storage-label"> (records)</span>
       </div>
-      <div class="storage-bar-wrap">
-        <div id="storageBar" class="storage-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+      <div class="storage-bar-host">
+        <div class="storage-bar-wrap">
+          <div id="storageBar" class="storage-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        <span id="storageBarTip" class="storage-hover-tip" aria-hidden="true"></span>
       </div>
       <p id="storageStatus" class="storage-status">Calculating…</p>
       <div id="storageIdbSection" class="storage-idb-section" style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border);">
@@ -224,10 +225,21 @@
           <span id="storageIdbQuotaText">— MB</span>
           <span class="storage-label"> Images (IndexedDB)</span>
         </div>
-        <div class="storage-bar-wrap" style="margin-top:4px;">
-          <div id="storageIdbBar" class="storage-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="background:var(--color-neutral);"></div>
+        <div class="storage-bar-host" style="margin-top:4px;">
+          <div class="storage-bar-wrap">
+            <div id="storageIdbBar" class="storage-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="background:var(--color-neutral);"></div>
+          </div>
+          <span id="storageIdbBarTip" class="storage-hover-tip" aria-hidden="true"></span>
         </div>
-        <p id="storageIdbStatus" class="storage-status" style="font-size:0.85em; margin-top:4px;">Calculating…</p>
+        <p id="storageIdbStatus" class="storage-status" style="font-size:0.85em; margin-top:4px;">Calculating...</p>
+      </div>
+      <div class="storage-actions">
+        <button type="button" class="storage-action-btn" onclick="transferLegacyPhotos(this)" title="Transfer localStorage image records to IndexedDB">
+          Transfer localStorage Images
+        </button>
+        <button type="button" class="storage-action-btn storage-action-btn--accent" onclick="optimizeStorage()" title="Retroactively compress all images to free up space">
+          Optimize DB
+        </button>
       </div>
     </div>
   </div>
@@ -346,3 +358,4 @@
 
 </body>
 </html>
+
