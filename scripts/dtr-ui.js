@@ -395,47 +395,38 @@ function saveEditModal() {
     const files = Array.from(document.getElementById("editImages").files);
     
     if (files.length > 0) {
-        Promise.allSettled(files.map((file) => compressImage(file)))
+        Promise.allSettled(files.map((file) => saveImageToStore(file)))
             .then((results) => {
-                console.log("Edit: Compression results:", results);
-                const compressed = results
-                    .filter(r => r.status === "fulfilled")
-                    .map(r => r.value);
-                console.log("Edit: Successfully compressed images count:", compressed.length, "of", files.length);
-                
-                if (!compressed || !compressed.length) {
+                const newImageIds = results
+                    .filter((r) => r.status === "fulfilled")
+                    .map((r) => r.value);
+                const failedCount = results.filter((r) => r.status === "rejected").length;
+
+                if (!newImageIds.length) {
                     const old = dailyRecords[editingIndex];
-                    if (results.some(r => r.status === "rejected")) {
-                        const failedCount = results.filter(r => r.status === "rejected").length;
-                        alert("Image compression failed for " + failedCount + " image(s). Keeping old images.");
+                    if (failedCount > 0) {
+                        alert("Image upload failed for " + failedCount + " image(s). Keeping old images.");
                     }
                     finalizeSave(date, hours, reflection, accomplishments, tools, old.imageIds || [], l2Data);
-                    return; // Do not continue Promise chain
+                    return;
                 }
-                
+
+                if (failedCount > 0) {
+                    alert("Some images failed to upload (" + failedCount + "). Saving only successfully uploaded images.");
+                }
+
                 // Delete old images and save new ones
                 const old = dailyRecords[editingIndex];
                 const oldIds = old.imageIds || [];
                 if (oldIds.length && typeof deleteImagesFromStore === "function") {
                     deleteImagesFromStore(oldIds).catch(() => {});
                 }
-                
-                Promise.allSettled(compressed.map((dataUrl) => saveImageToStore(dataUrl)))
-                    .then((saveResults) => {
-                        const newImageIds = saveResults
-                            .filter(r => r.status === "fulfilled")
-                            .map(r => r.value);
-                        console.log("Edit: Saved image IDs:", newImageIds);
-                        finalizeSave(date, hours, reflection, accomplishments, tools, newImageIds, l2Data);
-                    })
-                    .catch(err => {
-                        console.error("Edit: IndexedDB save error:", err);
-                        alert("Failed to save images to storage: " + (err && err.message ? err.message : err));
-                    });
+
+                finalizeSave(date, hours, reflection, accomplishments, tools, newImageIds, l2Data);
             })
             .catch((err) => {
-                console.error("Edit: Image processing critical error:", err);
-                alert("Image processing failed: " + (err && err.message ? err.message : err));
+                console.error("Edit: IndexedDB save error:", err);
+                alert("Failed to save images to storage: " + (err && err.message ? err.message : err));
             });
     } else {
         const old = dailyRecords[editingIndex];

@@ -6,9 +6,10 @@
 
 const DTR_IMAGE_DB_NAME = "DTRImageStore";
 const DTR_IMAGE_STORE_NAME = "images";
+const DTR_IMAGE_ORIGINAL_STORE_NAME = "images_original";
 const DTR_RECORDS_STORE_NAME = "records";
 const DTR_RECORDS_KEY = "primary";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let _db = null;
 
@@ -38,6 +39,9 @@ function openImageDB() {
             if (!db.objectStoreNames.contains(DTR_IMAGE_STORE_NAME)) {
                 db.createObjectStore(DTR_IMAGE_STORE_NAME, { keyPath: "id" });
             }
+            if (!db.objectStoreNames.contains(DTR_IMAGE_ORIGINAL_STORE_NAME)) {
+                db.createObjectStore(DTR_IMAGE_ORIGINAL_STORE_NAME, { keyPath: "id" });
+            }
             if (!db.objectStoreNames.contains(DTR_RECORDS_STORE_NAME)) {
                 db.createObjectStore(DTR_RECORDS_STORE_NAME, { keyPath: "id" });
             }
@@ -49,16 +53,43 @@ function generateImageId() {
     return "img_" + Date.now() + "_" + Math.random().toString(36).slice(2, 11);
 }
 
-/**
- * Save a data URL to IndexedDB. Returns the image id to store in the record.
- */
-function saveImageToStore(dataUrl) {
-    // ✅ Final validation gate
-    if (!dataUrl || typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) {
-        return Promise.reject(new Error("Invalid image data URL"));
-    }
+function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+        if (!(blob instanceof Blob)) {
+            reject(new Error("blobToDataUrl: input is not a Blob"));
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+        reader.onerror = () => reject(buildStoreError("blobToDataUrl", reader.error));
+        reader.readAsDataURL(blob);
+    });
+}
 
+/**
+ * Save image payload to IndexedDB. Accepts File/Blob (preferred) or legacy data URL.
+ * Returns the image id to store in the record.
+ */
+function saveImageToStore(imageInput) {
     const id = generateImageId();
+    let payload = null;
+
+    if (imageInput instanceof Blob) {
+        payload = {
+            id,
+            blob: imageInput,
+            mimeType: imageInput.type || "image/*",
+            sizeBytes: imageInput.size || 0
+        };
+    } else if (typeof imageInput === "string" && imageInput.startsWith("data:image/")) {
+        payload = {
+            id,
+            dataUrl: imageInput,
+            sizeBytes: imageInput.length
+        };
+    } else {
+        return Promise.reject(new Error("Invalid image payload"));
+    }
 
     return openImageDB().then((db) => {
         return new Promise((resolve, reject) => {
@@ -66,17 +97,86 @@ function saveImageToStore(dataUrl) {
             const store = tx.objectStore(DTR_IMAGE_STORE_NAME);
             tx.onabort = () => reject(buildStoreError("saveImageToStore transaction abort", tx.error));
             tx.onerror = () => reject(buildStoreError("saveImageToStore transaction", tx.error));
-
-            const req = store.put({ id, dataUrl });
-
+            const req = store.put(payload);
             req.onsuccess = () => resolve(id);
             req.onerror = () => reject(buildStoreError("saveImageToStore request", req.error));
         });
     });
 }
 
+function getImageEntryFromStore(id) {
+    if (!id) return Promise.resolve(null);
+    return openImageDB().then((db) => {
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(DTR_IMAGE_STORE_NAME, "readonly");
+            const store = tx.objectStore(DTR_IMAGE_STORE_NAME);
+            const req = store.get(id);
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => reject(buildStoreError("getImageEntryFromStore request", req.error));
+        });
+    });
+}
+
+function putImageEntryToStore(entry) {
+    if (!entry || !entry.id) return Promise.reject(new Error("putImageEntryToStore requires entry with id"));
+    return openImageDB().then((db) => {
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(DTR_IMAGE_STORE_NAME, "readwrite");
+            const store = tx.objectStore(DTR_IMAGE_STORE_NAME);
+            const req = store.put(entry);
+            req.onsuccess = () => resolve(true);
+            req.onerror = () => reject(buildStoreError("putImageEntryToStore request", req.error));
+        });
+    });
+}
+
+function backupOriginalImageIfMissing(id, entry) {
+    if (!id || !entry) return Promise.resolve(false);
+    return openImageDB().then((db) => {
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(DTR_IMAGE_ORIGINAL_STORE_NAME, "readwrite");
+            const store = tx.objectStore(DTR_IMAGE_ORIGINAL_STORE_NAME);
+            const getReq = store.get(id);
+            getReq.onsuccess = () => {
+                if (getReq.result) {
+                    resolve(false);
+                    return;
+                }
+                const putReq = store.put({ ...entry, id, backupAt: Date.now() });
+                putReq.onsuccess = () => resolve(true);
+                putReq.onerror = () => reject(buildStoreError("backupOriginalImageIfMissing put", putReq.error));
+            };
+            getReq.onerror = () => reject(buildStoreError("backupOriginalImageIfMissing get", getReq.error));
+        });
+    });
+}
+
+function restoreOriginalImageForId(id) {
+    if (!id) return Promise.resolve(false);
+    return openImageDB().then((db) => {
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction([DTR_IMAGE_ORIGINAL_STORE_NAME, DTR_IMAGE_STORE_NAME], "readwrite");
+            const originalStore = tx.objectStore(DTR_IMAGE_ORIGINAL_STORE_NAME);
+            const imageStore = tx.objectStore(DTR_IMAGE_STORE_NAME);
+            const getReq = originalStore.get(id);
+            getReq.onsuccess = () => {
+                const original = getReq.result;
+                if (!original) {
+                    resolve(false);
+                    return;
+                }
+                const { backupAt, ...restoredEntry } = original;
+                const putReq = imageStore.put(restoredEntry);
+                putReq.onsuccess = () => resolve(true);
+                putReq.onerror = () => reject(buildStoreError("restoreOriginalImageForId put", putReq.error));
+            };
+            getReq.onerror = () => reject(buildStoreError("restoreOriginalImageForId get", getReq.error));
+        });
+    });
+}
+
 /**
- * Get a data URL by id. Returns null if not found.
+ * Get a displayable data URL by id. Returns null if not found.
  */
 function getImageFromStore(id) {
     if (!id) return Promise.resolve(null);
@@ -85,7 +185,27 @@ function getImageFromStore(id) {
             const tx = db.transaction(DTR_IMAGE_STORE_NAME, "readonly");
             const store = tx.objectStore(DTR_IMAGE_STORE_NAME);
             const req = store.get(id);
-            req.onsuccess = () => resolve(req.result ? req.result.dataUrl : null);
+            req.onsuccess = async () => {
+                const row = req.result;
+                if (!row) {
+                    resolve(null);
+                    return;
+                }
+                if (row.dataUrl && typeof row.dataUrl === "string") {
+                    resolve(row.dataUrl);
+                    return;
+                }
+                if (row.blob instanceof Blob) {
+                    try {
+                        const dataUrl = await blobToDataUrl(row.blob);
+                        resolve(dataUrl || null);
+                    } catch (_) {
+                        resolve(null);
+                    }
+                    return;
+                }
+                resolve(null);
+            };
             req.onerror = () => reject(buildStoreError("getImageFromStore request", req.error));
         });
     });
@@ -113,9 +233,13 @@ function deleteImageFromStore(id) {
 function deleteImagesFromStore(ids) {
     if (!ids || !ids.length) return Promise.resolve();
     return openImageDB().then((db) => {
-        const tx = db.transaction(DTR_IMAGE_STORE_NAME, "readwrite");
+        const tx = db.transaction([DTR_IMAGE_STORE_NAME, DTR_IMAGE_ORIGINAL_STORE_NAME], "readwrite");
         const store = tx.objectStore(DTR_IMAGE_STORE_NAME);
-        ids.forEach((id) => store.delete(id));
+        const backupStore = tx.objectStore(DTR_IMAGE_ORIGINAL_STORE_NAME);
+        ids.forEach((id) => {
+            store.delete(id);
+            backupStore.delete(id);
+        });
         return new Promise((resolve, reject) => {
             tx.oncomplete = () => resolve();
             tx.onerror = () => reject(buildStoreError("deleteImagesFromStore transaction", tx.error));
@@ -124,7 +248,7 @@ function deleteImagesFromStore(ids) {
 }
 
 /**
- * Get total bytes used by the images store (sum of all dataUrl string lengths).
+ * Get total bytes used by the images store.
  */
 function getImageStoreUsageBytes() {
     return openImageDB().then((db) => {
@@ -134,7 +258,12 @@ function getImageStoreUsageBytes() {
             const req = store.getAll();
             req.onsuccess = () => {
                 const items = req.result || [];
-                const bytes = items.reduce((sum, item) => sum + (item && item.dataUrl ? item.dataUrl.length : 0), 0);
+                const bytes = items.reduce((sum, item) => {
+                    if (!item) return sum;
+                    if (item.blob instanceof Blob) return sum + (item.blob.size || 0);
+                    if (typeof item.dataUrl === "string") return sum + item.dataUrl.length;
+                    return sum;
+                }, 0);
                 resolve(bytes);
             };
             req.onerror = () => reject(buildStoreError("getImageStoreUsageBytes request", req.error));

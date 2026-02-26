@@ -169,7 +169,6 @@ function submitDTR() {
         .filter(t => t !== "");
 
     const files = Array.from(document.getElementById("images").files);
-    const images = [];
 
     // Convert l2Data values to proper types immediately
     const l2Data = {
@@ -185,10 +184,10 @@ function submitDTR() {
     if (!checkDataHealth(recordCheck)) return;
 
     if (files.length > 0) {
-        Promise.allSettled(files.map(compressImage))
+        Promise.allSettled(files.map((file) => saveImageToStore(file)))
             .then((results) => {
-                const compressed = results
-                    .filter((r) => r.status === "fulfilled" && typeof r.value === "string" && r.value.startsWith("data:image/"))
+                const imageIds = results
+                    .filter((r) => r.status === "fulfilled")
                     .map((r) => r.value);
                 const rejected = results
                     .map((r, index) => ({ r, index }))
@@ -198,54 +197,16 @@ function submitDTR() {
                         fileName: files[x.index] ? files[x.index].name : "(unknown)",
                         reason: getErrorSummary(x.r.reason)
                     }));
-                const invalidFulfilled = results
-                    .map((r, index) => ({ r, index }))
-                    .filter((x) => x.r.status === "fulfilled" && !(typeof x.r.value === "string" && x.r.value.startsWith("data:image/")))
-                    .map((x) => ({
-                        index: x.index,
-                        fileName: files[x.index] ? files[x.index].name : "(unknown)",
-                        valueType: typeof x.r.value
-                    }));
-                if (!compressed || !compressed.length) {
-                    if (rejected.length) console.error("Compression failures:", rejected);
-                    if (invalidFulfilled.length) console.error("Compression returned invalid fulfilled results:", invalidFulfilled);
-                    const failedCount = rejected.length + invalidFulfilled.length;
-                    if (failedCount > 0) {
-                        alert("Image compression failed for " + failedCount + " image(s). Saving DTR without images.");
-                    }
-                    saveRecord(date, hours, reflection, accomplishments, tools, [], l2Data);
-                    return; // Do not continue Promise chain
-                }
 
-                if (rejected.length || invalidFulfilled.length) {
-                    const failedCount = rejected.length + invalidFulfilled.length;
-                    console.warn("STEP 2-WARN: Partial image compression failure.", {
-                        successCount: compressed.length,
-                        failedCount,
-                        rejected,
-                        invalidFulfilled
-                    });
-                    alert("Some images failed to compress (" + failedCount + "). Saving only successfully compressed images.");
+                if (rejected.length) {
+                    console.warn("Some uploaded images failed to store in IndexedDB.", rejected);
+                    alert("Some images failed to store (" + rejected.length + "). Saving only successfully uploaded images.");
                 }
-                
-                // Save the compressed images to IndexedDB
-                return Promise.allSettled(compressed.map((dataUrl) => saveImageToStore(dataUrl)))
-                    .then((saveResults) => {
-                        const imageIds = saveResults
-                            .filter(r => r.status === "fulfilled")
-                            .map(r => r.value);
-                        saveRecord(date, hours, reflection, accomplishments, tools, imageIds, l2Data);
-                    })
-                    .catch(err => {
-                        console.error("IndexedDB save error:", err);
-                        if (confirm("Failed to save images to storage. Save DTR without images?")) {
-                            saveRecord(date, hours, reflection, accomplishments, tools, [], l2Data);
-                        }
-                    });
+                saveRecord(date, hours, reflection, accomplishments, tools, imageIds, l2Data);
             })
-            .catch(err => {
-                console.error("Critical image compression error:", err);
-                if (confirm("Critical image processing error. Save DTR without images?")) {
+            .catch((err) => {
+                console.error("IndexedDB image save error:", err);
+                if (confirm("Failed to save images to IndexedDB. Save DTR without images?")) {
                     saveRecord(date, hours, reflection, accomplishments, tools, [], l2Data);
                 } else {
                     alert("Submission cancelled.");
@@ -640,18 +601,25 @@ async function optimizeStorage() {
                 const compressedIds = [];
                 for (const id of record.imageIds) {
                     try {
+                        const entry = typeof getImageEntryFromStore === "function"
+                            ? await getImageEntryFromStore(id)
+                            : null;
                         const dataUrl = await getImageFromStore(id);
                         if (!dataUrl) { compressedIds.push(id); continue; }
                         if (dataUrl.length > 150000) {
+                            if (entry && typeof backupOriginalImageIfMissing === "function") {
+                                await backupOriginalImageIfMissing(id, entry);
+                            }
                             const compressed = await compressImage(dataUrl);
-                            await new Promise((res, rej) => {
-                                openImageDB().then((db) => {
-                                    const tx = db.transaction(DTR_IMAGE_STORE_NAME, "readwrite");
-                                    tx.objectStore(DTR_IMAGE_STORE_NAME).put({ id, dataUrl: compressed });
-                                    tx.oncomplete = () => res();
-                                    tx.onerror = () => rej(tx.error);
-                                }).catch(rej);
-                            });
+                            if (typeof putImageEntryToStore === "function") {
+                                await putImageEntryToStore({
+                                    id,
+                                    dataUrl: compressed,
+                                    sizeBytes: compressed.length,
+                                    optimizedAt: Date.now(),
+                                    isCompressed: true
+                                });
+                            }
                             imagesProcessed++;
                         }
                         compressedIds.push(id);
@@ -694,6 +662,50 @@ async function optimizeStorage() {
         alert("Optimization failed: " + err.message);
     } finally {
         if (btn && btn.tagName === "BUTTON") btn.innerText = originalText;
+    }
+}
+
+async function restoreOptimizedImages(buttonEl) {
+    if (!dailyRecords.length) return alert("No records found.");
+
+    const imageIds = [...new Set((dailyRecords || []).flatMap((r) => r.imageIds || []))];
+    if (!imageIds.length) {
+        alert("No IndexedDB images found to restore.");
+        return;
+    }
+
+    if (!confirm("Restore original versions for all optimized images from backup and keep them in IndexedDB?")) return;
+
+    const btn = buttonEl && buttonEl.tagName === "BUTTON" ? buttonEl : null;
+    const originalText = btn ? btn.innerText : "";
+    if (btn) btn.innerText = "Restoring... ⏳";
+
+    let restoredCount = 0;
+    try {
+        for (const id of imageIds) {
+            try {
+                const restored = typeof restoreOriginalImageForId === "function"
+                    ? await restoreOriginalImageForId(id)
+                    : false;
+                if (restored) restoredCount++;
+            } catch (e) {
+                console.warn("Failed to restore original image for id:", id, e);
+            }
+        }
+
+        if (typeof updateStorageVisualizer === "function") updateStorageVisualizer();
+        loadReflectionViewer();
+        if (dailyRecords.length) showSummary(dailyRecords[dailyRecords.length - 1]);
+
+        if (restoredCount > 0) {
+            alert(`Restore complete. ${restoredCount} image(s) restored to original quality from IndexedDB backup.`);
+        } else {
+            alert("No original backups were found to restore.");
+        }
+    } catch (err) {
+        alert("Restore failed: " + (err && err.message ? err.message : err));
+    } finally {
+        if (btn) btn.innerText = originalText;
     }
 }
 
