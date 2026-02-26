@@ -4,6 +4,10 @@
  */
 
 window.addEventListener("DOMContentLoaded", async () => {
+    const savedOjt = typeof hydrateOjtSettingsFromStorage === "function"
+        ? hydrateOjtSettingsFromStorage()
+        : null;
+
     // 1. Initial Data Sync
     if (typeof loadDTRRecords === "function") {
         dailyRecords = await loadDTRRecords();
@@ -16,6 +20,39 @@ window.addEventListener("DOMContentLoaded", async () => {
     setTheme(savedTheme);
 
     // 3. UI Initialization
+    const startInput = document.getElementById("ojtStartDate");
+    if (startInput && savedOjt && savedOjt.startDateKey) {
+        startInput.value = savedOjt.startDateKey;
+    }
+    const requiredHoursInput = document.getElementById("ojtRequiredHours");
+    if (requiredHoursInput) {
+        const hydratedHours = savedOjt && Number.isFinite(savedOjt.requiredHours)
+            ? savedOjt.requiredHours
+            : (typeof getCurrentRequiredOjtHours === "function" ? getCurrentRequiredOjtHours() : MASTER_TARGET_HOURS);
+        requiredHoursInput.value = hydratedHours;
+    }
+    const semesterEndInput = document.getElementById("semesterEndDate");
+    if (semesterEndInput) {
+        const hydratedEnd = savedOjt && savedOjt.semesterEndDateKey
+            ? savedOjt.semesterEndDateKey
+            : (typeof getCurrentSemesterEndDate === "function" ? getCurrentSemesterEndDate() : "");
+        semesterEndInput.value = hydratedEnd;
+    }
+    if (typeof populateOjtTimeZoneOptions === "function") {
+        populateOjtTimeZoneOptions(savedOjt && savedOjt.timeZone ? savedOjt.timeZone : null);
+    }
+    if (typeof applyDtrDateIntegrityGuardToInputs === "function") {
+        applyDtrDateIntegrityGuardToInputs();
+    }
+
+    const reflectionViewSelect = document.getElementById("reflectionViewMode");
+    if (reflectionViewSelect) {
+        reflectionViewSelect.value = currentReflectionViewMode;
+    }
+    if (typeof changeReflectionViewMode === "function") {
+        changeReflectionViewMode(currentReflectionViewMode);
+    }
+
     loadReflectionViewer();
     renderDailyGraph();
     renderWeeklyGraph();
@@ -30,6 +67,9 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     // 4. Export UI Setup
     updateExportWeekOptions();
+    if (typeof updateReflectionWeekOptions === "function") {
+        updateReflectionWeekOptions();
+    }
     if (typeof updateExportWeekRangeLabel === 'function') {
         updateExportWeekRangeLabel();
     }

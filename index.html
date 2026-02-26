@@ -26,6 +26,33 @@
     <button class="btn-theme-f1" onclick="setTheme('f1')">F1 Theme</button>
     <button class="btn-theme-cadillac" onclick="setTheme('cadillac')">Cadillac</button>
     <button class="btn-theme-apx" onclick="setTheme('apx')">APX GP</button>
+    <span class="export-divider">|</span>
+    <button class="btn-theme-kiki" onclick="setTheme('kiki')">Kiki's Delivery Service</button>
+  </div>
+
+  <div class="card">
+    <h2>OJT Timeline Settings</h2>
+    <div class="step">
+      <label for="ojtStartDate">Starting Date</label>
+      <input type="date" id="ojtStartDate">
+      <small id="ojtStartHelp" style="opacity:0.75;">Used as week 1 anchor for viewer, graphs, and telemetry.</small>
+    </div>
+    <div class="step">
+      <label for="ojtRequiredHours">Required OJT Hours</label>
+      <input type="number" id="ojtRequiredHours" min="1" step="1" placeholder="e.g. 500">
+      <small style="opacity:0.75;">Used for overall target, remaining hours, and forecast completion.</small>
+    </div>
+    <div class="step">
+      <label for="semesterEndDate">Semester End Date</label>
+      <input type="date" id="semesterEndDate">
+      <small style="opacity:0.75;">Forecasting and required pace are computed up to this date.</small>
+    </div>
+    <div class="step">
+      <label for="ojtTimeZone">Timezone</label>
+      <select id="ojtTimeZone" title="Timezone list based on IANA region IDs"></select>
+      <small style="opacity:0.75;">Used to interpret date boundaries and "today" for week/forecast calculations.</small>
+    </div>
+    <button type="button" onclick="saveOjtStartDateFromUI()">Save Timeline Settings</button>
   </div>
 
   <!-- DTR Input Form -->
@@ -81,11 +108,11 @@
       <label for="identityScore">Identity Alignment (1-5)</label>
       <select id="identityScore">
         <option value="0">Not Set</option>
-        <option value="1">1 - Misaligned</option>
-        <option value="2">2 - Improving</option>
-        <option value="3">3 - On Track</option>
-        <option value="4">4 - High Growth</option>
-        <option value="5">5 - Fully Aligned</option>
+        <option value="1">1 - Drifting</option>
+        <option value="2">2 - Re-centering</option>
+        <option value="3">3 - Aligned</option>
+        <option value="4">4 - Compounding</option>
+        <option value="5">5 - Mission Locked</option>
       </select>
     </div>
   </div>
@@ -141,6 +168,15 @@
         <option value="delta-desc">Performance (Best Delta)</option>
         <option value="delta-asc">Performance (Worst Delta)</option>
       </select>
+      <label for="reflectionViewMode" style="margin-left:10px;">View:</label>
+      <select id="reflectionViewMode" onchange="changeReflectionViewMode(this.value)">
+        <option value="all">All Entries</option>
+        <option value="week">By Week</option>
+      </select>
+      <label for="reflectionWeekSelect" style="margin-left:10px;">Week:</label>
+      <select id="reflectionWeekSelect" onchange="loadReflectionViewer()">
+        <option value="current">Current Week</option>
+      </select>
     </div>
 
     <div id="reflectionViewer" class="viewer-box">
@@ -191,6 +227,7 @@
     <h2>DTR Exports</h2>
     <div class="export-actions">
       <button onclick="exportPDF()">Export All</button>
+      <button onclick="exportDOCX()">Export .docx</button>
       <span class="export-divider">|</span>
       <label for="exportWeekSelect" class="export-label">Week</label>
       <select id="exportWeekSelect" onchange="updateExportWeekRangeLabel()" title="Choose a week to export">
@@ -241,6 +278,21 @@
           Optimize DB
         </button>
       </div>
+    </div>
+  </div>
+</div>
+
+<div id="ojtConfirmModal" class="modal" style="display:none;">
+  <div class="modal-content" style="max-width: 520px;">
+    <h3 style="margin-top:0; border-bottom:2px solid var(--accent); padding-bottom:10px;">Confirm OJT Timeline Settings</h3>
+    <p style="margin:10px 0 6px 0;"><strong>Starting Date:</strong> <span id="ojtConfirmStartDate">-</span></p>
+    <p style="margin:0 0 8px 0;"><strong>Required OJT Hours:</strong> <span id="ojtConfirmRequiredHours">-</span></p>
+    <p style="margin:0 0 8px 0;"><strong>Semester End Date:</strong> <span id="ojtConfirmSemesterEndDate">-</span></p>
+    <p style="margin:0 0 8px 0;"><strong>Timezone:</strong> <span id="ojtConfirmTimeZone">-</span></p>
+    <p style="opacity:0.75; font-size:0.9em;">Applying this will refresh week mapping, graphs, and forecast calculations.</p>
+    <div class="modal-actions" style="border-top:1px solid var(--border); padding-top:15px;">
+      <button type="button" onclick="closeOjtConfirmModal()" style="background: transparent; color: var(--text); border: 1px solid var(--border);">Cancel</button>
+      <button type="button" onclick="confirmSaveOjtTimelineSettings()">Confirm</button>
     </div>
   </div>
 </div>
@@ -300,11 +352,11 @@
         <label>Identity Alignment</label>
         <select id="editIdentityScore">
           <option value="0">Not Set</option>
-          <option value="1">1 - Misaligned</option>
-          <option value="2">2 - Improving</option>
-          <option value="3">3 - On Track</option>
-          <option value="4">4 - High Growth</option>
-          <option value="5">5 - Fully Aligned</option>
+          <option value="1">1 - Drifting</option>
+          <option value="2">2 - Re-centering</option>
+          <option value="3">3 - Aligned</option>
+          <option value="4">4 - Compounding</option>
+          <option value="5">5 - Mission Locked</option>
         </select>
       </div>
       <div class="step">
@@ -344,6 +396,7 @@
 
 <!-- FileSaver (needed for docx) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
 
 <!-- Core Logic & Helpers -->
 <script src="scripts/dtr-core.js"></script>

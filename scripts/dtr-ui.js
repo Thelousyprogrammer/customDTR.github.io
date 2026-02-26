@@ -74,7 +74,8 @@ function showSummary(record) {
         : "";
 
     const totalHours = getTotalHours();
-    let overallColor = (totalHours >= MASTER_TARGET_HOURS) ? DTR_COLORS.excellent : DTR_COLORS.good;
+    const targetHours = getCurrentRequiredOjtHours();
+    let overallColor = (totalHours >= targetHours) ? DTR_COLORS.excellent : DTR_COLORS.good;
     
     const weekNum = record.date ? getWeekNumber(record.date) : null;
     const weekHours = weekNum ? getWeekHours(weekNum) : 0;
@@ -103,7 +104,7 @@ function showSummary(record) {
                 <p><strong>Hours Worked:</strong> ${record.hours}</p>
                 <p><strong>Delta:</strong> <span style="color:${deltaColor}; font-weight:bold;">${record.delta >= 0 ? "+" : ""}${record.delta.toFixed(2)} hours</span></p>
                 <p><strong>Trend:</strong> <span style="color:${trendColor}; font-weight:bold;">${trendLabel}</span></p>
-                <p><strong>Overall:</strong> <span style="color:${overallColor}; font-weight:bold;">${totalHours} / ${MASTER_TARGET_HOURS}h</span></p>
+                <p><strong>Overall:</strong> <span style="color:${overallColor}; font-weight:bold;">${totalHours} / ${targetHours}h</span></p>
                 <p><strong>Weekly:</strong> <span style="color:${weekColor}; font-weight:bold;">${weekHours} / ${maxWeeklyHours}</span></p>
             </div>
             <div style="max-width:300px;">
@@ -155,6 +156,56 @@ function changeSortMode(mode) {
     loadReflectionViewer();
 }
 
+function getReflectionSelectedWeek() {
+    const select = document.getElementById("reflectionWeekSelect");
+    if (!select) return null;
+    const raw = select.value;
+    if (raw === "current") {
+        const latestDate = dailyRecords.length ? dailyRecords[dailyRecords.length - 1].date : toGmt8DateKey(new Date());
+        return getWeekNumber(latestDate);
+    }
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) ? n : null;
+}
+
+function updateReflectionWeekOptions() {
+    const select = document.getElementById("reflectionWeekSelect");
+    if (!select) return;
+
+    const currentValue = select.value || "current";
+    select.innerHTML = '<option value="current">Current Week</option>';
+
+    const weeks = [...new Set(dailyRecords.map(r => getWeekNumber(r.date)))].sort((a, b) => b - a);
+    weeks.forEach((w) => {
+        const range = getWeekDateRange(w);
+        const opt = document.createElement("option");
+        opt.value = String(w);
+        opt.textContent = `Week ${w}`;
+        opt.title = `${range.start} - ${range.end}`;
+        select.appendChild(opt);
+    });
+
+    if (select.querySelector(`option[value="${currentValue}"]`)) {
+        select.value = currentValue;
+    }
+
+    const viewMode = document.getElementById("reflectionViewMode");
+    if (viewMode && viewMode.value !== "week") {
+        select.style.display = "none";
+    }
+}
+
+function changeReflectionViewMode(mode) {
+    currentReflectionViewMode = mode === "week" ? "week" : "all";
+    const weekLabel = document.querySelector('label[for="reflectionWeekSelect"]');
+    const weekSelect = document.getElementById("reflectionWeekSelect");
+    const showWeek = currentReflectionViewMode === "week";
+    if (weekLabel) weekLabel.style.display = showWeek ? "inline-block" : "none";
+    if (weekSelect) weekSelect.style.display = showWeek ? "inline-block" : "none";
+    if (showWeek) updateReflectionWeekOptions();
+    loadReflectionViewer();
+}
+
 function loadReflectionViewer() {
     const viewer = document.getElementById("reflectionViewer");
     if (!viewer) return;
@@ -165,29 +216,71 @@ function loadReflectionViewer() {
         return;
     }
 
-    const latestDate = dailyRecords[dailyRecords.length - 1].date;
-    const currentWeek = getWeekNumber(latestDate);
+    const dedupedMap = new Map();
+    dailyRecords.forEach((r, idx) => {
+        const dateKey = toGmt8DateKey(r && r.date) || (r && r.date);
+        if (!dateKey) return;
+        dedupedMap.set(dateKey, { r: { ...r, date: dateKey }, originalIndex: idx });
+    });
+    const dedupedEntries = Array.from(dedupedMap.values()).sort((a, b) => a.r.date.localeCompare(b.r.date));
+    const duplicateCount = Math.max(0, dailyRecords.length - dedupedEntries.length);
+
+    updateReflectionWeekOptions();
+    const weekFilter = currentReflectionViewMode === "week" ? getReflectionSelectedWeek() : null;
+    const sourceEntries = weekFilter
+        ? dedupedEntries.filter(entry => getWeekNumber(entry.r.date) === weekFilter)
+        : dedupedEntries;
+    const sourceRecords = sourceEntries.map(entry => entry.r);
+
+    if (!sourceRecords.length) {
+        viewer.innerHTML = `<p class="empty">No reflections for the selected week.</p>`;
+        return;
+    }
+
+    if (duplicateCount > 0) {
+        const duplicateNotice = document.createElement("p");
+        duplicateNotice.style.margin = "0 0 10px 0";
+        duplicateNotice.style.fontSize = "0.9em";
+        duplicateNotice.style.opacity = "0.8";
+        duplicateNotice.textContent = `${duplicateCount} duplicate record(s) were hidden in the Reflection Viewer.`;
+        viewer.appendChild(duplicateNotice);
+    }
+
     const maxWeeklyHours = DAILY_TARGET_HOURS * 7;
-    const currentWeekHours = getWeekHours(currentWeek);
+    if (weekFilter) {
+        const weekHours = getWeekHours(weekFilter);
+        let weekColor = DTR_COLORS.neutral;
+        if (weekHours < maxWeeklyHours * 0.5) weekColor = DTR_COLORS.warning;
+        else if (weekHours < maxWeeklyHours) weekColor = DTR_COLORS.good;
+        const range = getWeekDateRange(weekFilter);
+        const counterDiv = document.createElement("div");
+        counterDiv.style.marginBottom = "10px";
+        counterDiv.innerHTML = `<strong>Week ${weekFilter} Hours:</strong> <span style="color:${weekColor}; font-weight:bold;">${weekHours} / ${maxWeeklyHours}</span> <span style="opacity:0.7; font-size:0.9em;">(${range.start} - ${range.end})</span>`;
+        viewer.appendChild(counterDiv);
+    } else {
+        const latestDate = dailyRecords[dailyRecords.length - 1].date;
+        const currentWeek = getWeekNumber(latestDate);
+        const currentWeekHours = getWeekHours(currentWeek);
+        let weekColor = DTR_COLORS.neutral;
+        if (currentWeekHours < maxWeeklyHours * 0.5) weekColor = DTR_COLORS.warning;
+        else if (currentWeekHours < maxWeeklyHours) weekColor = DTR_COLORS.good;
+        const counterDiv = document.createElement("div");
+        counterDiv.style.marginBottom = "10px";
+        counterDiv.innerHTML = `<strong>Week ${currentWeek} Hours:</strong> <span style="color:${weekColor}; font-weight:bold;">${currentWeekHours} / ${maxWeeklyHours}</span>`;
+        viewer.appendChild(counterDiv);
+    }
 
-    let weekColor = DTR_COLORS.neutral;
-    if (currentWeekHours < maxWeeklyHours * 0.5) weekColor = DTR_COLORS.warning;
-    else if (currentWeekHours < maxWeeklyHours) weekColor = DTR_COLORS.good;
-
-    const counterDiv = document.createElement("div");
-    counterDiv.style.marginBottom = "10px";
-    counterDiv.innerHTML = `<strong>Week ${currentWeek} Hours:</strong> <span style="color:${weekColor}; font-weight:bold;">${currentWeekHours} / ${maxWeeklyHours}</span>`;
-    viewer.appendChild(counterDiv);
-
-    let displayItems = dailyRecords.map((r, index) => {
+    let displayItems = sourceEntries.map((entry) => {
+        const r = entry.r;
+        const originalIndex = entry.originalIndex;
         let trendLabel = "No previous record", trendColor = DTR_COLORS.neutral;
-        if (index > 0) {
-            const prevDelta = dailyRecords[index - 1].delta;
+        if (originalIndex > 0) {
+            const prevDelta = dailyRecords[originalIndex - 1].delta;
             if (r.delta > prevDelta) { trendLabel = "Improved"; trendColor = DTR_COLORS.good; }
             else if (r.delta < prevDelta) { trendLabel = "Declined"; trendColor = DTR_COLORS.warning; }
             else { trendLabel = "Same as before"; trendColor = DTR_COLORS.neutral; }
         }
-        return { r, originalIndex: index, trendLabel, trendColor };
+        return { r, originalIndex, trendLabel, trendColor };
     });
 
     if (currentSortMode === "date-desc") displayItems.sort((a,b) => (toGmt8DateKey(b.r.date) || "").localeCompare(toGmt8DateKey(a.r.date) || ""));
@@ -292,6 +385,12 @@ function saveEditModal() {
         commuteProductive: parseFloat(document.getElementById("editCommuteProductive").value) || 0,
         identityScore: parseInt(document.getElementById("editIdentityScore").value) || null
     };
+    const startDate = typeof getCurrentOjtStartDate === "function" ? getCurrentOjtStartDate() : null;
+    const dateKey = typeof toGmt8DateKey === "function" ? toGmt8DateKey(date) : date;
+    if (startDate && dateKey && dateKey < startDate) {
+        alert(`DTR Date cannot be earlier than OJT Starting Date (${startDate}).`);
+        return;
+    }
 
     const files = Array.from(document.getElementById("editImages").files);
     
@@ -345,7 +444,26 @@ function saveEditModal() {
 }
 
 async function finalizeSave(date, hours, reflection, accomplishments, tools, imageIds, l2Data) {
-    dailyRecords[editingIndex] = new DailyRecord(date, hours, reflection, accomplishments, tools, [], l2Data, imageIds || []);
+    const startDate = typeof getCurrentOjtStartDate === "function" ? getCurrentOjtStartDate() : null;
+    const dateKey = typeof toGmt8DateKey === "function" ? toGmt8DateKey(date) : date;
+    if (startDate && dateKey && dateKey < startDate) {
+        alert(`DTR Date cannot be earlier than OJT Starting Date (${startDate}).`);
+        return;
+    }
+
+    const normalizedDate = dateKey || date;
+    const duplicateIndex = dailyRecords.findIndex((r, idx) =>
+        idx !== editingIndex && (toGmt8DateKey(r.date) || r.date) === normalizedDate
+    );
+    if (duplicateIndex !== -1) {
+        if (!confirm(`A DTR record for ${normalizedDate} already exists. Overwrite it with this edit?`)) {
+            return;
+        }
+        dailyRecords.splice(duplicateIndex, 1);
+        if (duplicateIndex < editingIndex) editingIndex -= 1;
+    }
+
+    dailyRecords[editingIndex] = new DailyRecord(normalizedDate, hours, reflection, accomplishments, tools, [], l2Data, imageIds || []);
     dailyRecords.sort((a, b) => (toGmt8DateKey(a.date) || "").localeCompare(toGmt8DateKey(b.date) || ""));
     if (typeof persistDTR === "function") {
         const ok = await persistDTR(dailyRecords);
@@ -358,6 +476,7 @@ async function finalizeSave(date, hours, reflection, accomplishments, tools, ima
     }
 
     closeEditModal();
+    updateReflectionWeekOptions();
     loadReflectionViewer();
     const newIndex = dailyRecords.findIndex(r => r.date === date);
     showSummary(dailyRecords[newIndex]);
@@ -367,10 +486,209 @@ async function finalizeSave(date, hours, reflection, accomplishments, tools, ima
     alert("Record updated successfully!");
 }
 
+function closeOjtConfirmModal() {
+    const modal = document.getElementById("ojtConfirmModal");
+    if (modal) modal.style.display = "none";
+}
+
+function applyDtrDateIntegrityGuardToInputs() {
+    const startDate = typeof getCurrentOjtStartDate === "function" ? getCurrentOjtStartDate() : "";
+    if (!startDate) return;
+    ["date", "editDate"].forEach((id) => {
+        const input = document.getElementById(id);
+        if (input) input.min = startDate;
+    });
+}
+
+function populateOjtTimeZoneOptions(selectedTz = null) {
+    const select = document.getElementById("ojtTimeZone");
+    if (!select) return;
+    const zoneOptions = typeof getTimeZoneOptionsByOffset === "function"
+        ? getTimeZoneOptionsByOffset()
+        : [{ id: DEFAULT_TIMEZONE, label: `(UTC0 | GMT0) ${DEFAULT_TIMEZONE}` }];
+    const current = selectedTz || (typeof getCurrentTimeZone === "function" ? getCurrentTimeZone() : DEFAULT_TIMEZONE);
+    select.innerHTML = "";
+    const options = [...zoneOptions];
+    const zoneIds = options.map((z) => z.id);
+    if (current && !zoneIds.includes(current) && typeof isValidTimeZoneId === "function" && isValidTimeZoneId(current)) {
+        options.unshift({
+            id: current,
+            label: `${current} (Legacy: uses inverted Etc/GMT naming)`
+        });
+    }
+    options.forEach((tz) => {
+        const opt = document.createElement("option");
+        opt.value = tz.id;
+        opt.textContent = tz.label;
+        select.appendChild(opt);
+    });
+    const finalIds = options.map((z) => z.id);
+    if (finalIds.includes(current)) {
+        select.value = current;
+    } else if (finalIds.includes(DEFAULT_TIMEZONE)) {
+        select.value = DEFAULT_TIMEZONE;
+    }
+}
+
+function saveOjtStartDateFromUI() {
+    const input = document.getElementById("ojtStartDate");
+    if (!input || !input.value) {
+        alert("Please choose a valid starting date.");
+        return;
+    }
+
+    const requiredInput = document.getElementById("ojtRequiredHours");
+    const requiredHours = requiredInput ? parseFloat(requiredInput.value) : getCurrentRequiredOjtHours();
+    if (!Number.isFinite(requiredHours) || requiredHours < 1) {
+        alert("Please enter a valid Required OJT Hours value (minimum 1).");
+        return;
+    }
+
+    const semesterEndInput = document.getElementById("semesterEndDate");
+    const semesterEndDate = semesterEndInput ? semesterEndInput.value : "";
+    if (!semesterEndDate) {
+        alert("Please choose a valid Semester End Date.");
+        return;
+    }
+    if (semesterEndDate < input.value) {
+        alert("Semester End Date cannot be earlier than Starting Date.");
+        return;
+    }
+
+    const timezoneSelect = document.getElementById("ojtTimeZone");
+    const selectedTz = timezoneSelect ? timezoneSelect.value : getCurrentTimeZone();
+    const selectedTzLabel = timezoneSelect && timezoneSelect.selectedOptions && timezoneSelect.selectedOptions.length
+        ? timezoneSelect.selectedOptions[0].textContent
+        : selectedTz;
+    if (!isValidTimeZoneId(selectedTz)) {
+        alert("Please choose a valid timezone.");
+        return;
+    }
+
+    const startText = document.getElementById("ojtConfirmStartDate");
+    const requiredText = document.getElementById("ojtConfirmRequiredHours");
+    const semesterEndText = document.getElementById("ojtConfirmSemesterEndDate");
+    const timezoneText = document.getElementById("ojtConfirmTimeZone");
+    if (startText) startText.innerText = input.value;
+    if (requiredText) requiredText.innerText = `${requiredHours}h`;
+    if (semesterEndText) semesterEndText.innerText = semesterEndDate;
+    if (timezoneText) timezoneText.innerText = selectedTzLabel;
+
+    const modal = document.getElementById("ojtConfirmModal");
+    if (modal) modal.style.display = "flex";
+}
+
+async function wipeAllDtrDataForTimelineChange() {
+    const allImageIds = (dailyRecords || []).flatMap((r) => r.imageIds || []);
+    dailyRecords = [];
+
+    if (typeof clearRecordsFromStore === "function") {
+        try { await clearRecordsFromStore(); } catch (_) {}
+    }
+
+    localStorage.removeItem("dtr");
+
+    if (allImageIds.length && typeof deleteImagesFromStore === "function") {
+        try { await deleteImagesFromStore(allImageIds); } catch (_) {}
+    }
+
+    if (typeof clearDTRForm === "function") clearDTRForm();
+    if (typeof showSummary === "function") showSummary({});
+    if (typeof updateStorageVisualizer === "function") updateStorageVisualizer();
+}
+
+async function confirmSaveOjtTimelineSettings() {
+    const input = document.getElementById("ojtStartDate");
+    const requiredInput = document.getElementById("ojtRequiredHours");
+    const semesterEndInput = document.getElementById("semesterEndDate");
+    const timezoneSelect = document.getElementById("ojtTimeZone");
+    if (!input || !input.value || !requiredInput || !semesterEndInput || !timezoneSelect) return;
+
+    const previousStartDate = typeof getCurrentOjtStartDate === "function" ? getCurrentOjtStartDate() : null;
+    const persistedStartDate = typeof getOjtSettings === "function"
+        ? toGmt8DateKey((getOjtSettings() || {}).ojtStartDate)
+        : null;
+    const originalStartDate = persistedStartDate || previousStartDate;
+    const nextStartDate = input.value;
+    const startDateChanged = !!persistedStartDate && persistedStartDate !== nextStartDate;
+
+    if (startDateChanged) {
+        const proceedWithChange = confirm(
+            `You are changing the OJT starting date from ${originalStartDate} to ${nextStartDate}. Week mapping, graphs, and forecasts will be updated. Continue?`
+        );
+        if (!proceedWithChange) return;
+    }
+
+    let shouldWipeData = false;
+    if (startDateChanged && nextStartDate > originalStartDate) {
+        shouldWipeData = confirm(
+            `The new starting date (${nextStartDate}) is ahead of your original date (${originalStartDate}). All saved DTR data will be wiped. Continue?`
+        );
+        if (!shouldWipeData) return;
+    }
+
+    if (!applyOjtStartDate(nextStartDate)) {
+        alert("Unable to save starting date. Please use YYYY-MM-DD format.");
+        return;
+    }
+
+    const requiredHours = parseFloat(requiredInput.value);
+    if (!applyRequiredOjtHours(requiredHours)) {
+        alert("Unable to save Required OJT Hours.");
+        return;
+    }
+
+    if (!semesterEndInput.value || semesterEndInput.value < nextStartDate) {
+        alert("Semester End Date cannot be earlier than Starting Date.");
+        return;
+    }
+
+    if (!applySemesterEndDate(semesterEndInput.value)) {
+        alert("Unable to save Semester End Date.");
+        return;
+    }
+
+    if (!applyTimeZone(timezoneSelect.value)) {
+        alert("Unable to save timezone.");
+        return;
+    }
+
+    if (shouldWipeData) {
+        await wipeAllDtrDataForTimelineChange();
+    }
+
+    if (typeof hydrateOjtSettingsFromStorage === "function") {
+        hydrateOjtSettingsFromStorage();
+    }
+    if (typeof applyDtrDateIntegrityGuardToInputs === "function") {
+        applyDtrDateIntegrityGuardToInputs();
+    }
+
+    closeOjtConfirmModal();
+    updateReflectionWeekOptions();
+    if (typeof updateExportWeekOptions === "function") updateExportWeekOptions();
+    loadReflectionViewer();
+    renderDailyGraph();
+    renderWeeklyGraph();
+
+    const dateInput = document.getElementById("date");
+    const activeDate = dateInput && dateInput.value ? dateInput.value : (dailyRecords.length ? dailyRecords[dailyRecords.length - 1].date : null);
+    if (activeDate) updateWeeklyCounter(activeDate);
+
+    if (shouldWipeData) {
+        alert(`Timeline saved: ${nextStartDate} | Required: ${requiredHours}h | End: ${semesterEndInput.value} | TZ: ${timezoneSelect.value}\n\nAll DTR records were wiped because the new start date is ahead of the original date.`);
+    } else {
+        alert(`Timeline saved: ${nextStartDate} | Required: ${requiredHours}h | End: ${semesterEndInput.value} | TZ: ${timezoneSelect.value}`);
+    }
+}
+
 document.addEventListener("click", e => {
     if (!e.target.classList.contains("edit-btn")) return;
     editingIndex = Number(e.target.dataset.index);
     const r = dailyRecords[editingIndex];
+    if (typeof applyDtrDateIntegrityGuardToInputs === "function") {
+        applyDtrDateIntegrityGuardToInputs();
+    }
 
     document.getElementById("editDate").value = r.date;
     document.getElementById("editHours").value = r.hours;

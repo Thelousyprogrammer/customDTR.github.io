@@ -30,7 +30,8 @@ function toggleSimulation() {
 function runSimulation() {
     if (!isSimulating) return;
 
-    const simHours = parseFloat(document.getElementById("simHours").value) || 8;
+    const simHoursRaw = parseFloat(document.getElementById("simHours").value);
+    const simHours = Number.isFinite(simHoursRaw) ? Math.max(0, simHoursRaw) : 8;
     const simDaysToAdd = parseInt(document.getElementById("simDays").value) || 5;
     
     // Start from the last date in allLogs or TODAY
@@ -54,7 +55,7 @@ function runSimulation() {
             hours: simHours,
             personalHours: simHours > 8 ? (simHours - 8) * 0.5 : 0, 
             sleepHours: Math.max(4, 9 - (simHours * 0.3)), 
-            identityScore: simHours > 10 ? 2 : (simHours >= 8 ? 4 : 5), 
+            identityScore: simHours === 0 ? 1 : (simHours > 10 ? 2 : (simHours >= 8 ? 4 : 5)), 
             accomplishments: ["Simulated Entry"],
             commuteTotal: 1.5,
             commuteProductive: 1.0

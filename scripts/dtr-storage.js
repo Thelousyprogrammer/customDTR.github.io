@@ -152,6 +152,12 @@ function submitDTR() {
         alert("Please enter a valid date and number of hours.");
         return;
     }
+    const startDate = typeof getCurrentOjtStartDate === "function" ? getCurrentOjtStartDate() : null;
+    const dateKey = typeof toGmt8DateKey === "function" ? toGmt8DateKey(date) : date;
+    if (startDate && dateKey && dateKey < startDate) {
+        alert(`DTR Date cannot be earlier than OJT Starting Date (${startDate}).`);
+        return;
+    }
 
     const accomplishments = document.getElementById("accomplishments").value
         .split("\n")
@@ -360,9 +366,17 @@ function compressImage(input, quality = 0.6, maxWidth = 1280) {
 }
 
 async function saveRecord(date, hours, reflection, accomplishments, tools, imageIds, l2Data) {
-    const record = new DailyRecord(date, hours, reflection, accomplishments, tools, [], l2Data, imageIds || []);
+    const startDate = typeof getCurrentOjtStartDate === "function" ? getCurrentOjtStartDate() : null;
+    const dateKey = typeof toGmt8DateKey === "function" ? toGmt8DateKey(date) : date;
+    if (startDate && dateKey && dateKey < startDate) {
+        alert(`DTR Date cannot be earlier than OJT Starting Date (${startDate}).`);
+        return;
+    }
+
+    const normalizedDate = dateKey || date;
+    const record = new DailyRecord(normalizedDate, hours, reflection, accomplishments, tools, [], l2Data, imageIds || []);
     const previous = [...dailyRecords];
-    dailyRecords = dailyRecords.filter(r => r.date !== date);
+    dailyRecords = dailyRecords.filter((r) => (toGmt8DateKey(r.date) || r.date) !== normalizedDate);
     dailyRecords.push(record);
     dailyRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
 

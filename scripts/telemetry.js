@@ -6,6 +6,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const loader = document.getElementById("loadingOverlay");
     if (loader) loader.style.display = "flex";
 
+    if (typeof hydrateOjtSettingsFromStorage === "function") {
+        hydrateOjtSettingsFromStorage();
+    }
+
     COLORS = getThemeValues();
     initThemeSwitcher();
 
@@ -138,8 +142,11 @@ function updateTargetPace(val) {
 
         const projected = series.projectedCumulative.filter((v) => v != null);
         const actual = series.actualCumulative.filter((v) => v != null);
+        const targetHours = series && series.forecast && Number.isFinite(series.forecast.targetHours)
+            ? series.forecast.targetHours
+            : getCurrentRequiredOjtHours();
         const yMaxSource = Math.max(
-            MASTER_TARGET_HOURS,
+            targetHours,
             actual.length ? Math.max(...actual) : 0,
             projected.length ? Math.max(...projected) : 0
         );
@@ -270,6 +277,12 @@ function renderTelemetry(logs, selectedWeek = "all") {
 
     const totalSleep = logs.reduce((sum, r) => sum + (r.sleepHours || 0), 0);
     safeUpdate("avgSleep", `${(logs.length > 0 ? totalSleep / logs.length : 0).toFixed(1)}h`);
+    const totalRecovery = logs.reduce((sum, r) => sum + (r.recoveryHours || 0), 0);
+    safeUpdate("avgRecovery", `${(logs.length > 0 ? totalRecovery / logs.length : 0).toFixed(1)}h`);
+    safeUpdate("avgIdentity", `${avgIdentity.toFixed(1)} / 5`);
+    const totalPersonal = logs.reduce((sum, r) => sum + (r.personalHours || 0), 0);
+    const personalRatio = filteredActual > 0 ? (totalPersonal / filteredActual) * 100 : 0;
+    safeUpdate("personalOjtRatio", `${personalRatio.toFixed(1)}%`);
 
     calculateMomentum(today);
 

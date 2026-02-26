@@ -302,3 +302,97 @@ function exportWeeklyPDF() {
 
     showPdfPreview(doc, getTodayFileName("WeeklyReport", "pdf"), `Weekly DTR Report – ${weekLabel}`);
 }
+
+function exportDOCX() {
+    if (!dailyRecords.length) return alert("No records to export.");
+    if (!window.docx || !window.saveAs) {
+        alert("DOCX export dependencies are not loaded.");
+        return;
+    }
+
+    const {
+        Document,
+        Packer,
+        Paragraph,
+        TextRun,
+        HeadingLevel,
+        AlignmentType
+    } = window.docx;
+
+    const startDateKey = (typeof getCurrentOjtStartDate === "function")
+        ? getCurrentOjtStartDate()
+        : toGmt8DateKey(OJT_START);
+    const requiredHours = (typeof getCurrentRequiredOjtHours === "function")
+        ? getCurrentRequiredOjtHours()
+        : MASTER_TARGET_HOURS;
+    const semesterEndKey = (typeof getCurrentSemesterEndDate === "function")
+        ? getCurrentSemesterEndDate()
+        : "";
+    const timeZoneId = (typeof getCurrentTimeZone === "function")
+        ? getCurrentTimeZone()
+        : DEFAULT_TIMEZONE;
+    const totalHours = dailyRecords.reduce((sum, r) => sum + (parseFloat(r.hours) || 0), 0);
+
+    const children = [
+        new Paragraph({
+            heading: HeadingLevel.TITLE,
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun("Daily DTR Report")]
+        }),
+        new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+                new TextRun(`Generated: ${new Date().toLocaleDateString()}  |  Start: ${startDateKey}  |  End: ${semesterEndKey}  |  TZ: ${timeZoneId}  |  Required: ${requiredHours}h  |  Entries: ${dailyRecords.length}  |  Hours: ${totalHours.toFixed(1)}`)
+            ]
+        }),
+        new Paragraph({ text: "" })
+    ];
+
+    dailyRecords.forEach((r) => {
+        const weekNum = getWeekNumber(r.date);
+        const identityLabel = getIdentityAlignmentLabel(r.identityScore || 0);
+        const toolsText = Array.isArray(r.tools) && r.tools.length ? r.tools.join(", ") : "N/A";
+        const accomplishments = Array.isArray(r.accomplishments) ? r.accomplishments.filter(Boolean) : [];
+
+        children.push(
+            new Paragraph({
+                heading: HeadingLevel.HEADING_2,
+                children: [new TextRun(`${r.date} (Week ${weekNum})`)]
+            }),
+            new Paragraph({
+                children: [
+                    new TextRun(`Hours: ${r.hours}h  |  Delta: ${r.delta >= 0 ? "+" : ""}${r.delta.toFixed(2)}h`)
+                ]
+            }),
+            new Paragraph({ children: [new TextRun(`Reflection: ${r.reflection || "-"}`)] }),
+            new Paragraph({ children: [new TextRun(`Tools: ${toolsText}`)] }),
+            new Paragraph({
+                children: [
+                    new TextRun(`L2: Personal ${parseFloat(r.personalHours) || 0}h | Sleep ${parseFloat(r.sleepHours) || 0}h | Recovery ${parseFloat(r.recoveryHours) || 0}h | Identity ${identityLabel}`)
+                ]
+            })
+        );
+
+        if (accomplishments.length) {
+            children.push(new Paragraph({ children: [new TextRun("Accomplishments:")] }));
+            accomplishments.forEach((a) => {
+                children.push(new Paragraph({ text: a, bullet: { level: 0 } }));
+            });
+        }
+
+        children.push(new Paragraph({ text: "" }));
+    });
+
+    const doc = new Document({
+        sections: [{ properties: {}, children }]
+    });
+
+    Packer.toBlob(doc)
+        .then((blob) => {
+            saveAs(blob, getTodayFileName("Daily_DTR_Report", "docx"));
+        })
+        .catch((err) => {
+            console.error("DOCX export failed:", err);
+            alert("DOCX export failed. Check console for details.");
+        });
+}

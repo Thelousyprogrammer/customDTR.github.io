@@ -61,12 +61,11 @@ function renderDailyGraph(records = dailyRecords) {
         cell.classList.add(`cell-${['empty', 'low', 'mid', 'high'][level]}`);
         
         // TOOLTIP
-        const formattedDate = d.toLocaleDateString('en-PH', {
-            weekday: 'short', 
-            month: 'short', 
-            day: 'numeric', 
-            year: 'numeric',
-            timeZone: "Asia/Manila"
+        const formattedDate = formatGmt8DateLabel(d, {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            year: "numeric"
         });
         cell.title = `${formattedDate}: ${recordHours}h ${record ? '(Click to view)' : ''}`;
 
@@ -82,7 +81,7 @@ function renderDailyGraph(records = dailyRecords) {
 
         // Align label to the column where the 1st of the month falls
         if (toGmt8DateKey(d).slice(8, 10) === "01") {
-            const monthName = d.toLocaleString('default', { month: 'short', timeZone: "Asia/Manila" });
+            const monthName = formatGmt8DateLabel(d, { month: "short" });
             if (!usedMonthNames.has(monthName) && (colIndex - lastCol) > 2) {
                 usedMonthNames.add(monthName);
                 lastCol = colIndex;
@@ -107,8 +106,8 @@ function renderWeeklyGraph(records = dailyRecords) {
     records.forEach(r => {
         const d = parseDateKeyGmt8(toGmt8DateKey(r.date));
         if (!d) return;
-        const month = d.toLocaleString('default', { month: 'short', timeZone: "Asia/Manila" });
-        const year = d.toLocaleString('en-US', { year: 'numeric', timeZone: "Asia/Manila" });
+        const month = formatGmt8DateLabel(d, { month: "short" });
+        const year = formatGmt8DateLabel(d, { year: "numeric" });
         const key = `${month} ${year}`;
         const week = getWeekNumber(d);
 

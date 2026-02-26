@@ -402,7 +402,87 @@
 }
 
 /* ==========================================
-   4. THEME-SPECIFIC BUTTON STYLES
+   4. KIKI'S DELIVERY SERVICE (Warm Storybook)
+   ========================================== */
+@font-face {
+  font-family: "Harrington Local";
+  src: local("Harrington"),
+       url("file:///C:/Windows/Fonts/Harrington.ttf") format("truetype");
+  font-display: swap;
+}
+
+[data-theme="kiki"] {
+    --bg: #654e31;
+    --panel: rgba(101, 78, 49, 0.86);
+    --surface: #7c6240;
+    --text: #f8f4de;
+    --text-dim: #d5ce8c;
+    --border: #cf6436;
+    --accent: #d5ce8c;
+    --accent-dark: #cf6436;
+    --accent-soft: #e15b49;
+    --sec: #cf6436;
+    --tri: #654e31;
+
+    --font-heading: "Harrington Local", "Harrington", "Georgia", serif;
+    --font-body: "Harrington Local", "Harrington", "Trebuchet MS", serif;
+
+    --color-neutral: #d5ce8c;
+    --color-warning: #e15b49;
+    --color-good: #518662;
+    --color-excellent: #d5ce8c;
+
+    --level-0: #654e31;
+    --level-1: #e15b49;
+    --level-2: #518662;
+    --level-3: #d5ce8c;
+
+    --chart-grid: rgba(213, 206, 140, 0.18);
+    --chart-fill: rgba(207, 100, 54, 0.24);
+    --chart-ideal: rgba(81, 134, 98, 0.35);
+}
+
+[data-theme="kiki"] body {
+    background: url("https://static.wikia.nocookie.net/studio-ghibli/images/d/d4/Kiki%27s_Delivery_Service_-_Kiki_at_store.jpg/revision/latest/scale-to-width-down/1000?cb=20200326173354") center/cover fixed no-repeat;
+}
+
+[data-theme="kiki"] .card,
+[data-theme="kiki"] .stat-card,
+[data-theme="kiki"] .telemetry-card,
+[data-theme="kiki"] .chart-container {
+    background: var(--panel) !important;
+    border: 1px solid rgba(213, 206, 140, 0.55) !important;
+    backdrop-filter: blur(2px);
+}
+
+[data-theme="kiki"] h1,
+[data-theme="kiki"] h2,
+[data-theme="kiki"] h3,
+[data-theme="kiki"] .card h1,
+[data-theme="kiki"] .card h2 {
+    color: var(--accent);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="kiki"] button {
+    background: linear-gradient(180deg, #cf6436, #e15b49);
+    color: #fff8e7;
+    border: 1px solid #d5ce8c;
+}
+
+[data-theme="kiki"] button:hover {
+    background: linear-gradient(180deg, #e15b49, #cf6436) !important;
+    box-shadow: 0 0 14px rgba(229, 91, 73, 0.45);
+}
+
+[data-theme="kiki"] .btn-destructive {
+    background: linear-gradient(180deg, #518662, #3c6b4f) !important;
+    border: 1px solid #d5ce8c !important;
+    color: #f8f4de !important;
+}
+
+/* ==========================================
+   5. THEME-SPECIFIC BUTTON STYLES
    ========================================== */
 .btn-theme-f1 {
     background: #ff1e00 !important;
@@ -444,4 +524,17 @@
     background: #cbb145 !important;
     color: black !important;
     box-shadow: 0 0 10px #cbb145;
+}
+
+.btn-theme-kiki {
+    background: linear-gradient(180deg, #cf6436, #e15b49) !important;
+    color: #fff8e7 !important;
+    border: 1px solid #d5ce8c !important;
+    font-family: "Harrington Local", "Harrington", "Georgia", serif !important;
+    letter-spacing: 0.3px;
+}
+
+.btn-theme-kiki:hover {
+    background: linear-gradient(180deg, #e15b49, #cf6436) !important;
+    box-shadow: 0 0 12px rgba(229, 91, 73, 0.45);
 }

@@ -20,8 +20,11 @@ function renderTrajectoryChart(logs, customPace = null) {
     const idealCumulative = series.idealCumulative;
     const maxProjected = projectedCumulative.filter((v) => v != null);
     const maxActual = actualCumulative.filter((v) => v != null);
+    const targetHours = series && series.forecast && Number.isFinite(series.forecast.targetHours)
+        ? series.forecast.targetHours
+        : getCurrentRequiredOjtHours();
     const yMaxSource = Math.max(
-        MASTER_TARGET_HOURS,
+        targetHours,
         maxActual.length ? Math.max(...maxActual) : 0,
         maxProjected.length ? Math.max(...maxProjected) : 0
     );
@@ -140,39 +143,102 @@ function renderIdentityChart(logs) {
     const canvas = document.getElementById('identityChart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    
-    const gradIdentity = ctx.createLinearGradient(0, 0, 0, 300);
-    gradIdentity.addColorStop(0, COLORS.excellent + '55');
-    gradIdentity.addColorStop(1, 'transparent');
 
     const weeklyIdentity = {};
-    logs.forEach(r => {
-        if (r.identityScore > 0) {
-            const w = getWeekNumber(r.date);
-            if (!weeklyIdentity[w]) weeklyIdentity[w] = { sum: 0, count: 0 };
-            weeklyIdentity[w].sum += r.identityScore;
-            weeklyIdentity[w].count++;
-        }
+    logs.forEach((r) => {
+        const score = parseInt(r.identityScore, 10) || 0;
+        if (score <= 0) return;
+        const w = getWeekNumber(r.date);
+        if (!weeklyIdentity[w]) weeklyIdentity[w] = { sum: 0, count: 0 };
+        weeklyIdentity[w].sum += score;
+        weeklyIdentity[w].count += 1;
     });
 
-    const labels = Object.keys(weeklyIdentity).sort((a,b) => a - b);
+    const sortedWeeks = Object.keys(weeklyIdentity).map(Number).sort((a, b) => a - b);
+    if (!sortedWeeks.length) {
+        charts.identity = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['No Data'],
+                datasets: [{
+                    label: 'Alignment Score',
+                    data: [0],
+                    backgroundColor: COLORS.grid
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { min: 0, max: 5, grid: { color: COLORS.grid } } }
+            }
+        });
+        return;
+    }
+
+    const labels = sortedWeeks.map((w) => `Week ${w}`);
+    const avgScores = sortedWeeks.map((w) => weeklyIdentity[w].sum / weeklyIdentity[w].count);
+    const counts = sortedWeeks.map((w) => weeklyIdentity[w].count);
+    const targetLine = sortedWeeks.map(() => 4);
+
     charts.identity = new Chart(ctx, {
-        type: 'line',
         data: {
-            labels: labels.map(w => `Week ${w}`),
-            datasets: [{
-                label: 'Alignment Score',
-                data: labels.map(w => weeklyIdentity[w].sum / weeklyIdentity[w].count),
-                borderColor: COLORS.excellent,
-                backgroundColor: gradIdentity,
-                fill: true,
-                tension: 0.3
-            }]
+            labels,
+            datasets: [
+                {
+                    type: 'bar',
+                    label: 'Weekly Alignment Avg',
+                    data: avgScores,
+                    backgroundColor: avgScores.map((score) => {
+                        if (score >= 4) return COLORS.excellent + 'bb';
+                        if (score >= 3) return COLORS.good + 'bb';
+                        if (score >= 2) return COLORS.warning + 'bb';
+                        return COLORS.accent + 'bb';
+                    }),
+                    borderColor: 'transparent',
+                    borderRadius: 4,
+                    yAxisID: 'y'
+                },
+                {
+                    type: 'line',
+                    label: 'Target',
+                    data: targetLine,
+                    borderColor: COLORS.text + '66',
+                    borderDash: [6, 4],
+                    pointRadius: 0,
+                    tension: 0,
+                    yAxisID: 'y'
+                },
+                {
+                    type: 'line',
+                    label: 'Entries',
+                    data: counts,
+                    borderColor: COLORS.accent,
+                    backgroundColor: COLORS.accent + '33',
+                    pointBackgroundColor: COLORS.accent,
+                    pointRadius: 2,
+                    tension: 0.25,
+                    yAxisID: 'y1'
+                }
+            ]
         },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
-            scales: { y: { min: 0, max: 5, grid: { color: COLORS.grid } } } 
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    min: 0,
+                    max: 5,
+                    ticks: { stepSize: 1 },
+                    grid: { color: COLORS.grid }
+                },
+                y1: {
+                    beginAtZero: true,
+                    position: 'right',
+                    grid: { drawOnChartArea: false },
+                    ticks: { precision: 0 }
+                }
+            }
         }
     });
 }
