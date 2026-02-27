@@ -30,6 +30,7 @@
         <button class="telemetry-btn btn-theme-apx" onclick="setTelemetryTheme('apx')">APX GP</button>
         <span class="export-divider">|</span>
         <button class="telemetry-btn btn-theme-kiki" onclick="setTelemetryTheme('kiki')">Kiki</button>
+        <span class="export-divider">|</span>
         <button class="telemetry-btn" onclick="window.location.href='index.html'">Back to DTR</button>
       </div>
     </div>
@@ -183,7 +184,7 @@
   <!-- L2 & wellness -->
   <section class="telemetry-section">
     <h2 class="section-title">L2 Telemetry & Wellness</h2>
-    <div class="telemetry-charts-row telemetry-charts-three">
+    <div class="telemetry-charts-row telemetry-charts-two">
       <div class="card stat-card">
         <h3>L2 Performance</h3>
         <div class="stat-rows">
@@ -197,16 +198,20 @@
         </div>
       </div>
       <div class="card chart-card">
-        <h3>Identity Alignment</h3>
-        <div class="chart-wrap">
-          <canvas id="identityChart"></canvas>
-        </div>
-      </div>
-      <div class="card chart-card">
         <h3>Energy Zones</h3>
         <div class="chart-wrap">
           <canvas id="energyZoneChart"></canvas>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Identity Alignment (Larger / Dedicated) -->
+  <section class="telemetry-section">
+    <h2 class="section-title">Identity Alignment Analysis</h2>
+    <div class="card chart-card chart-card-wide">
+      <div class="chart-wrap chart-tall">
+        <canvas id="identityChart"></canvas>
       </div>
     </div>
   </section>

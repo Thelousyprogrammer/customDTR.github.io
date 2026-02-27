@@ -182,61 +182,97 @@ function renderIdentityChart(logs) {
     const targetLine = sortedWeeks.map(() => 4);
 
     charts.identity = new Chart(ctx, {
+        type: 'bar',
         data: {
             labels,
             datasets: [
                 {
                     type: 'bar',
-                    label: 'Weekly Alignment Avg',
+                    label: 'Weekly Avg',
                     data: avgScores,
                     backgroundColor: avgScores.map((score) => {
-                        if (score >= 4) return COLORS.excellent + 'bb';
-                        if (score >= 3) return COLORS.good + 'bb';
-                        if (score >= 2) return COLORS.warning + 'bb';
-                        return COLORS.accent + 'bb';
+                        if (score >= 4) return COLORS.excellent + 'aa';
+                        if (score >= 3) return COLORS.good + 'aa';
+                        if (score >= 2) return COLORS.warning + 'aa';
+                        return COLORS.accent + 'aa';
                     }),
-                    borderColor: 'transparent',
+                    borderColor: avgScores.map((score) => {
+                        if (score >= 4) return COLORS.excellent;
+                        if (score >= 3) return COLORS.good;
+                        if (score >= 2) return COLORS.warning;
+                        return COLORS.accent;
+                    }),
+                    borderWidth: 2,
                     borderRadius: 4,
-                    yAxisID: 'y'
+                    yAxisID: 'y',
+                    xAxisID: 'x'
                 },
                 {
                     type: 'line',
-                    label: 'Target',
+                    label: 'Target (4.0)',
                     data: targetLine,
-                    borderColor: COLORS.text + '66',
-                    borderDash: [6, 4],
+                    borderColor: COLORS.text + '88',
+                    borderDash: [5, 3],
                     pointRadius: 0,
                     tension: 0,
-                    yAxisID: 'y'
+                    yAxisID: 'y',
+                    xAxisID: 'x'
                 },
                 {
                     type: 'line',
-                    label: 'Entries',
+                    label: 'Entry Count',
                     data: counts,
                     borderColor: COLORS.accent,
                     backgroundColor: COLORS.accent + '33',
                     pointBackgroundColor: COLORS.accent,
-                    pointRadius: 2,
-                    tension: 0.25,
-                    yAxisID: 'y1'
+                    pointRadius: 3,
+                    pointBorderColor: '#000',
+                    pointBorderWidth: 1,
+                    tension: 0.3,
+                    yAxisID: 'y1',
+                    xAxisID: 'x'
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: { font: { size: 11 }, color: COLORS.text }
+                },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: (context) => {
+                            if (context.dataset.type === 'bar') {
+                                const idx = context.dataIndex;
+                                return `Entries: ${counts[idx]}`;
+                            }
+                            return '';
+                        }
+                    }
+                }
+            },
             scales: {
+                x: {
+                    type: 'category',
+                    grid: { display: false }
+                },
                 y: {
                     min: 0,
                     max: 5,
-                    ticks: { stepSize: 1 },
-                    grid: { color: COLORS.grid }
+                    ticks: { stepSize: 1, callback: value => value.toFixed(1) },
+                    grid: { color: COLORS.grid },
+                    title: { display: true, text: 'Alignment Score (1-5)', font: { size: 11 } }
                 },
                 y1: {
                     beginAtZero: true,
                     position: 'right',
                     grid: { drawOnChartArea: false },
-                    ticks: { precision: 0 }
+                    ticks: { precision: 0 },
+                    title: { display: true, text: 'Entry Count', font: { size: 11 } }
                 }
             }
         }
@@ -330,31 +366,86 @@ function renderCandlestickChart(logs) {
 function renderContextualCharts(logs, selectedWeek) {
     const deltaCanvas = document.getElementById('deltaChart');
     if (deltaCanvas) {
+        // Calculate delta values and cumulative delta
+        const deltas = logs.map(r => r.hours - 8);
+        let cumulativeDelta = 0;
+        const cumulativeDeltas = deltas.map(d => {
+            cumulativeDelta += d;
+            return cumulativeDelta;
+        });
+        
         charts.delta = new Chart(deltaCanvas.getContext('2d'), {
-            type: 'line',
+            type: 'bar',
             data: {
                 labels: logs.map(r => r.date),
-                datasets: [{
-                    label: 'Delta (8h Ref)',
-                    data: logs.map(r => r.hours - 8),
-                    borderColor: COLORS.accent,
-                    fill: {
-                        target: 'origin',
-                        above: COLORS.good + '44',
-                        below: COLORS.accent + '44'
+                datasets: [
+                    {
+                        label: 'Daily Delta',
+                        data: deltas,
+                        backgroundColor: deltas.map(d => d >= 0 ? COLORS.good + '88' : COLORS.accent + '88'),
+                        borderColor: deltas.map(d => d >= 0 ? COLORS.good : COLORS.accent),
+                        borderWidth: 1,
+                        borderRadius: 2,
+                        yAxisID: 'y',
+                        order: 2
                     },
-                    backgroundColor: COLORS.fill,
-                    tension: 0.4,
-                    pointRadius: 2
-                }]
+                    {
+                        label: 'Cumulative Delta',
+                        type: 'line',
+                        data: cumulativeDeltas,
+                        borderColor: COLORS.accent,
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        pointBackgroundColor: COLORS.accent,
+                        pointBorderColor: '#000',
+                        pointBorderWidth: 1,
+                        pointRadius: 3,
+                        tension: 0.3,
+                        yAxisID: 'y1',
+                        order: 1
+                    }
+                ]
             },
             options: { 
                 responsive: true, 
-                maintainAspectRatio: false, 
-                plugins: { legend: { display: false } },
+                maintainAspectRatio: false,
+                indexAxis: undefined,
+                plugins: { 
+                    legend: { 
+                        display: true,
+                        position: 'top',
+                        labels: { font: { size: 11 }, color: COLORS.text }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                if (context.dataset.label === 'Daily Delta') {
+                                    const val = context.parsed.y;
+                                    return `Daily: ${val > 0 ? '+' : ''}${val.toFixed(1)}h`;
+                                } else {
+                                    const val = context.parsed.y;
+                                    return `Cumulative: ${val > 0 ? '+' : ''}${val.toFixed(1)}h`;
+                                }
+                            }
+                        }
+                    }
+                },
                 scales: {
-                    y: { grid: { color: COLORS.grid } },
-                    x: { display: false }
+                    y: { 
+                        type: 'linear',
+                        position: 'left',
+                        grid: { color: COLORS.grid },
+                        title: { display: true, text: 'Daily Delta (hours)', font: { size: 10 } },
+                        ticks: { callback: value => (value > 0 ? '+' : '') + value + 'h' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        title: { display: true, text: 'Cumulative (hours)', font: { size: 10 } },
+                        ticks: { callback: value => (value > 0 ? '+' : '') + value + 'h' }
+                    },
+                    x: { display: true }
                 }
             }
         });

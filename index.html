@@ -270,6 +270,22 @@
         </div>
         <p id="storageIdbStatus" class="storage-status" style="font-size:0.85em; margin-top:4px;">Calculating...</p>
       </div>
+      <div class="storage-actions" style="margin-top:10px; display:grid; gap:8px;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <label for="storageTargetSelect" style="margin:0; min-width:92px;">Target Images</label>
+          <select id="storageTargetSelect" style="flex:1; min-width:220px;" title="Select a single record for storage actions"></select>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <label style="display:flex; gap:6px; align-items:center; margin:0;">
+            <input type="checkbox" id="storageBatchMode" onchange="toggleStorageBatchMode()">
+            Batch processing
+          </label>
+          <small style="opacity:0.75;">Enable to select multiple records below.</small>
+        </div>
+        <div id="storageBatchWrap" style="display:none;">
+          <select id="storageBatchSelect" multiple size="6" style="width:100%; min-height:120px;" title="Select multiple records for batch storage actions"></select>
+        </div>
+      </div>
       <div class="storage-actions">
         <button type="button" class="storage-action-btn" onclick="transferLegacyPhotos(this)" title="Transfer localStorage image records to IndexedDB">
           Transfer localStorage Images
@@ -406,7 +422,9 @@
 <script src="scripts/dtr-image-store.js"></script>
 <!-- Logic Modules -->
 <script src="scripts/dtr-storage.js"></script>
+<script src="scripts/dtr-storage-aux.js"></script>
 <script src="scripts/dtr-ui.js"></script>
+<script src="scripts/dtr-ui-aux.js"></script>
 <script src="scripts/dtr-graphs.js"></script>
 <script src="scripts/dtr-exports.js"></script>
 <!-- Main Controller -->
